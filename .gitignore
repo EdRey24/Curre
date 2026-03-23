@@ -1,0 +1,47 @@
+# ── Android / Kotlin ──────────────────────────────
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+*.apk
+*.aab
+*.ap_
+
+# Android local config
+frontend/local.properties
+frontend/.idea/
+frontend/app/release/
+
+# ── Spring Boot / Java ────────────────────────────
+backend/target/
+backend/.mvn/
+backend/*.log
+
+# Maven wrapper
+!backend/.mvn/wrapper/maven-wrapper.jar
+!backend/.mvn/wrapper/maven-wrapper.properties
+
+# Spring Boot local config
+backend/src/main/resources/application-local.properties
+backend/.idea/
+
+# ── Environment / Secrets ─────────────────────────
+.env
+*.env
+application-secrets.properties
+
+# ── OS files ──────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── IDEs ──────────────────────────────────────────
+.idea/
+*.iws
+*.ipr
+out/
