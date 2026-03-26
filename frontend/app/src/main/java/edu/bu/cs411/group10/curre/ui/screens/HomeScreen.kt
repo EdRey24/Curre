@@ -32,9 +32,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import edu.bu.cs411.group10.curre.model.PastRun
+import edu.bu.cs411.group10.curre.ui.model.PastRun
 import edu.bu.cs411.group10.curre.ui.theme.CurreBackground
-import edu.bu.cs411.group10.curre.ui.theme.CurreBorder
 import edu.bu.cs411.group10.curre.ui.theme.CurreIconMuted
 import edu.bu.cs411.group10.curre.ui.theme.CurreLime
 import edu.bu.cs411.group10.curre.ui.theme.CurreNavy
