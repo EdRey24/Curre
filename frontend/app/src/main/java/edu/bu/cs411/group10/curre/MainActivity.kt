@@ -11,13 +11,21 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import edu.bu.cs411.group10.curre.model.PastRun
-import edu.bu.cs411.group10.curre.model.RunSummary
+import edu.bu.cs411.group10.curre.ui.model.PastRun
+import edu.bu.cs411.group10.curre.ui.model.RunSummary
 import edu.bu.cs411.group10.curre.ui.screens.ActiveRunScreen
 import edu.bu.cs411.group10.curre.ui.screens.EndRunScreen
 import edu.bu.cs411.group10.curre.ui.screens.HomeScreen
 import edu.bu.cs411.group10.curre.ui.theme.CurreTheme
 import kotlinx.coroutines.delay
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import edu.bu.cs411.group10.curre.network.RetrofitClient
+import edu.bu.cs411.group10.curre.ui.model.RunDto
+import androidx.compose.runtime.LaunchedEffect
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -44,6 +52,8 @@ fun CurreApp() {
     // Tracks which screen is currently visible.
     var currentScreen by remember { mutableStateOf<AppScreen>(AppScreen.Home) }
 
+    val coroutineScope = rememberCoroutineScope()
+
     // Stores the time when the current "running segment" began.
     // This resets when the user resumes after pausing.
     var runSegmentStartTimeMillis by remember { mutableLongStateOf(0L) }
@@ -59,11 +69,28 @@ fun CurreApp() {
     var isPaused by remember { mutableStateOf(false) }
 
     // Placeholder recent run data for the home screen.
-    val sampleRuns = listOf(
-        PastRun(1, 5.2, 20, "2/10/26"),
-        PastRun(2, 3.8, 10, "2/9/26"),
-        PastRun(3, 7.1, 30, "2/8/26")
-    )
+    var pastRuns by remember { mutableStateOf<List<PastRun>>(emptyList()) }
+
+    LaunchedEffect(currentScreen) {
+        if (currentScreen is AppScreen.Home){
+            try {
+                val response = RetrofitClient.api.getRuns()
+                if (response.isSuccessful){
+                    val fetchedDtos = response.body() ?: emptyList()
+                    pastRuns = fetchedDtos.map { dto ->
+                        PastRun(
+                            dto.id?.toInt() ?: 0,
+                            dto.avgPaceSecsPerMile / 60,
+                            dto.durationSeconds / 60,
+                            SimpleDateFormat("M/d/yy", Locale.getDefault()).format(Date(dto.startedAt))
+                        )
+                    }.reversed()
+                }
+            } catch (e: Exception){
+                println("NETWORK ERROR FETCHING RUNS: ${e.message}")
+            }
+        }
+    }
 
     when (val screen = currentScreen) {
         is AppScreen.Home -> {
@@ -71,7 +98,7 @@ fun CurreApp() {
                 emergencyContactsCount = 1,
                 weeklyMiles = 12.5,
                 streakDays = 20,
-                pastRuns = sampleRuns,
+                pastRuns = pastRuns,
                 onStartRun = {
                     // Starting a brand-new run resets timing state.
                     accumulatedElapsedMillis = 0L
@@ -141,12 +168,37 @@ fun CurreApp() {
                         accumulatedElapsedMillis + (System.currentTimeMillis() - runSegmentStartTimeMillis)
                     }
 
+                    val distance = 0.15 // This is hardcoded for the demo
+                    val durationSecs = (finalElapsedMillis / 1000).toInt()
+                    val paceSecsPerMile = if (distance > 0) durationSecs / distance else 0.0
+                    val paceMinutes = (paceSecsPerMile / 60).toInt()
+                    val paceSeconds = (paceSecsPerMile % 60).toInt()
+                    val formattedPace = String.format("%d:%02d", paceMinutes, paceSeconds)
+                    val estimatedCalories = (distance * 100).toInt()
+                    val runtoSave = RunDto(
+                        startedAt = System.currentTimeMillis() - finalElapsedMillis,
+                        endedAt = System.currentTimeMillis(),
+                        distanceMiles = distance,
+                        durationSeconds = durationSecs,
+                        avgPaceSecsPerMile = if (distance > 0) durationSecs / distance else 0.0,
+                        calories = estimatedCalories
+                    )
+                    coroutineScope.launch {
+                        try {
+                            val response = RetrofitClient.api.saveRun(runtoSave)
+                            if (response.isSuccessful) println("SUCCESS! Saved run to backend with ID: ${response.body()?.id}")
+                            else println("SERVER ERROR: ${response.errorBody()?.string()}")
+                        } catch (e: Exception){
+                            println("NETWORK ERROR: ${e.message}")
+                        }
+                    }
+
                     currentScreen = AppScreen.EndRun(
                         RunSummary(
-                            miles = 0.05,
+                            miles = distance,
                             durationText = formatSummaryDuration(finalElapsedMillis),
-                            avgPaceText = "11.90",
-                            calories = 3
+                            avgPaceText = formattedPace,
+                            calories = estimatedCalories
                         )
                     )
                 }
