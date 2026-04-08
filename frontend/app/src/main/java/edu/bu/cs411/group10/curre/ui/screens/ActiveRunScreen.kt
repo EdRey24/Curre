@@ -17,15 +17,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.rounded.Stop
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,6 +47,7 @@ import edu.bu.cs411.group10.curre.ui.theme.CurreLimeSoft
 import edu.bu.cs411.group10.curre.ui.theme.CurreNavy
 import edu.bu.cs411.group10.curre.ui.theme.CurreOrange
 import edu.bu.cs411.group10.curre.ui.theme.CurreSafetyText
+import edu.bu.cs411.group10.curre.ui.theme.CurreSurface
 import edu.bu.cs411.group10.curre.ui.theme.CurreTextMuted
 
 @Composable
@@ -51,8 +58,13 @@ fun ActiveRunScreen(
     avgPace: Double,
     isPaused: Boolean,
     onPauseResumeClick: () -> Unit,
-    onStopClick: () -> Unit
+    onStopClick: () -> Unit,
+    onPauseForEndDialog: () -> Unit,
+    onResumeAfterEndDialogDismiss: () -> Unit
 ) {
+    // Controls whether the "End Run" confirmation dialog is visible.
+    var showEndRunDialog by remember { mutableStateOf(false) }
+
     // Full-screen surface for the active run page.
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -147,7 +159,9 @@ fun ActiveRunScreen(
                 Spacer(modifier = Modifier.width(18.dp))
 
                 IconButton(
-                    onClick = onStopClick,
+                    onClick = {
+                        onPauseForEndDialog()
+                        showEndRunDialog = true },
                     modifier = Modifier
                         .size(88.dp)
                         .clip(CircleShape)
@@ -164,6 +178,66 @@ fun ActiveRunScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
         }
+    }
+
+    // End run confirmation dialog
+    if (showEndRunDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showEndRunDialog = false
+                onResumeAfterEndDialogDismiss()
+            },
+            containerColor = CurreSurface,
+            shape = RoundedCornerShape(24.dp),
+            title = {
+                Text(
+                    text = "End Run?",
+                    color = CurreNavy,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 22.sp
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to end this run and view your summary?",
+                    color = CurreTextMuted,
+                    fontSize = 15.sp
+                )
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = {
+                        showEndRunDialog = false
+                        onResumeAfterEndDialogDismiss()
+                    },
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text(
+                        text = "Cancel",
+                        color = CurreNavy,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showEndRunDialog = false
+                        onStopClick()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = CurreLime,
+                        contentColor = CurreNavy
+                    ),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text(
+                        text = "End Run",
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        )
     }
 }
 

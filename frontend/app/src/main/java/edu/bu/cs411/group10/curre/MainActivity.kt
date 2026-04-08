@@ -71,6 +71,8 @@ fun CurreApp() {
     // Placeholder recent run data for the home screen.
     var pastRuns by remember { mutableStateOf<List<PastRun>>(emptyList()) }
 
+    var pausedByEndDialog by remember { mutableStateOf(false) }
+
     LaunchedEffect(currentScreen) {
         if (currentScreen is AppScreen.Home){
             try {
@@ -152,6 +154,7 @@ fun CurreApp() {
                         // Start a new running segment now, while preserving previous elapsed time.
                         runSegmentStartTimeMillis = System.currentTimeMillis()
                         isPaused = false
+                        pausedByEndDialog = false
                     } else {
                         // Pause:
                         // Save elapsed time up to this moment, then freeze.
@@ -193,6 +196,8 @@ fun CurreApp() {
                         }
                     }
 
+                    pausedByEndDialog = false
+
                     currentScreen = AppScreen.EndRun(
                         RunSummary(
                             miles = distance,
@@ -201,6 +206,23 @@ fun CurreApp() {
                             calories = estimatedCalories
                         )
                     )
+                },
+                onPauseForEndDialog = {
+                    if (!isPaused) {
+                        accumulatedElapsedMillis +=
+                            (System.currentTimeMillis() - runSegmentStartTimeMillis)
+                        isPaused = true
+                        pausedByEndDialog = true
+                    } else {
+                        pausedByEndDialog = false
+                    }
+                },
+                onResumeAfterEndDialogDismiss = {
+                    if (pausedByEndDialog) {
+                        runSegmentStartTimeMillis = System.currentTimeMillis()
+                        isPaused = false
+                        pausedByEndDialog = false
+                    }
                 }
             )
         }
