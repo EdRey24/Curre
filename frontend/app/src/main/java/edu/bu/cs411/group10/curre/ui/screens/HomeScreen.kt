@@ -1,47 +1,37 @@
 package edu.bu.cs411.group10.curre.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.List
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Security
-import androidx.compose.material.icons.outlined.WarningAmber
-import androidx.compose.material.icons.rounded.Bolt
-import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.LocationOn
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import edu.bu.cs411.group10.curre.ui.components.AlertBanner
+import edu.bu.cs411.group10.curre.ui.components.BottomNavTab
+import edu.bu.cs411.group10.curre.ui.components.CurreBottomBar
+import edu.bu.cs411.group10.curre.ui.components.RecentRunItem
+import edu.bu.cs411.group10.curre.ui.components.StatCard
 import edu.bu.cs411.group10.curre.ui.model.PastRun
 import edu.bu.cs411.group10.curre.ui.theme.CurreBackground
-import edu.bu.cs411.group10.curre.ui.theme.CurreIconMuted
-import edu.bu.cs411.group10.curre.ui.theme.CurreLime
 import edu.bu.cs411.group10.curre.ui.theme.CurreNavy
 import edu.bu.cs411.group10.curre.ui.theme.CurreOrange
-import edu.bu.cs411.group10.curre.ui.theme.CurreOrangeSoft
 import edu.bu.cs411.group10.curre.ui.theme.CurreStreakCard
 import edu.bu.cs411.group10.curre.ui.theme.CurreSurface
-import edu.bu.cs411.group10.curre.ui.theme.CurreSurfaceSoft
 import edu.bu.cs411.group10.curre.ui.theme.CurreTextMuted
 
 @Composable
@@ -54,15 +44,18 @@ fun HomeScreen(
     onSafetyClick: () -> Unit,
     onRunsClick: () -> Unit,
     onProfileClick: () -> Unit,
-    onRecentRunClick: (PastRun) -> Unit
+    onRecentRunClick: (PastRun) -> Unit,
+    onSignOut: () -> Unit
 ) {
     // Scaffold gives us a main app layout with a fixed bottom bar.
     Scaffold(
         containerColor = CurreBackground,
         bottomBar = {
-            HomeBottomBar(
-                onStartRun = onStartRun,
+            CurreBottomBar(
+                selectedTab = BottomNavTab.HOME,
+                onHomeClick = { },
                 onSafetyClick = onSafetyClick,
+                onStartRunClick = onStartRun,
                 onRunsClick = onRunsClick,
                 onProfileClick = onProfileClick
             )
@@ -78,6 +71,20 @@ fun HomeScreen(
             contentPadding = PaddingValues(top = 20.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onSignOut) {
+                        Text(
+                            text = "Sign Out",
+                            color = CurreTextMuted,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
             // App title
             item {
                 Text(
@@ -90,7 +97,7 @@ fun HomeScreen(
 
             // Emergency status card
             item {
-                EmergencyBanner(
+                AlertBanner(
                     contactsCount = emergencyContactsCount
                 )
             }
@@ -133,115 +140,6 @@ fun HomeScreen(
 }
 
 @Composable
-private fun EmergencyBanner(
-    contactsCount: Int
-) {
-    // Soft orange card showing emergency safety readiness.
-    Card(
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = CurreOrangeSoft),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(18.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.WarningAmber,
-                contentDescription = "Emergency alert",
-                tint = CurreOrange
-            )
-
-            Spacer(modifier = Modifier.width(14.dp))
-
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = "Emergency Alert Ready",
-                    color = CurreNavy,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Stay safe on every adventure!",
-                    color = CurreTextMuted,
-                    fontSize = 14.sp
-                )
-            }
-
-            // Small circular badge showing number of emergency contacts.
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(CurreOrange),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = contactsCount.toString(),
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun StatCard(
-    modifier: Modifier = Modifier,
-    title: String,
-    value: String,
-    subtitle: String,
-    backgroundColor: Color,
-    contentColor: Color
-) {
-    // Reusable card for the "THIS WEEK" and "STREAK" boxes.
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = backgroundColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 24.dp, horizontal = 20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = title,
-                color = contentColor,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                text = value,
-                color = contentColor,
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 32.sp
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text(
-                text = subtitle,
-                color = contentColor.copy(alpha = 0.85f),
-                fontSize = 14.sp
-            )
-        }
-    }
-}
-
-@Composable
 private fun RecentRunsCard(
     runs: List<PastRun>,
     onRecentRunClick: (PastRun) -> Unit
@@ -265,7 +163,7 @@ private fun RecentRunsCard(
                     tint = CurreOrange
                 )
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(4.dp))
 
                 Text(
                     text = "Recent Runs",
@@ -287,160 +185,6 @@ private fun RecentRunsCard(
                     )
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun RecentRunItem(
-    run: PastRun,
-    onClick: () -> Unit
-) {
-    // Each individual run row inside the recent runs card.
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        shape = RoundedCornerShape(18.dp),
-        color = CurreSurfaceSoft,
-        tonalElevation = 0.dp,
-        shadowElevation = 0.dp
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 18.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Orange circular pace badge
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .background(CurreOrange),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = String.format("%.1f", run.pace),
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            // Duration and date
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = "${run.durationMinutes} Minutes",
-                    color = CurreNavy,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = run.date,
-                    color = CurreTextMuted,
-                    fontSize = 14.sp
-                )
-            }
-
-            // Arrow icon on the right
-            Icon(
-                imageVector = Icons.Rounded.ChevronRight,
-                contentDescription = "Open run",
-                tint = CurreIconMuted
-            )
-        }
-    }
-}
-
-@Composable
-private fun HomeBottomBar(
-    onStartRun: () -> Unit,
-    onSafetyClick: () -> Unit,
-    onRunsClick: () -> Unit,
-    onProfileClick: () -> Unit
-) {
-    // Bottom nav bar with a center floating run button.
-    Box {
-        NavigationBar(
-            containerColor = Color.White
-        ) {
-            NavigationBarItem(
-                selected = true,
-                onClick = { },
-                icon = {
-                    Icon(
-                        imageVector = Icons.Outlined.Home,
-                        contentDescription = "Home"
-                    )
-                },
-                label = { Text("Home") }
-            )
-
-            NavigationBarItem(
-                selected = false,
-                onClick = onSafetyClick,
-                icon = {
-                    Icon(
-                        imageVector = Icons.Outlined.Security,
-                        contentDescription = "Safety"
-                    )
-                },
-                label = { Text("Safety") }
-            )
-
-            // Empty center slot so the floating button can sit above it.
-            NavigationBarItem(
-                selected = false,
-                onClick = { },
-                icon = { Spacer(modifier = Modifier.size(24.dp)) },
-                label = { Text("") }
-            )
-
-            NavigationBarItem(
-                selected = false,
-                onClick = onRunsClick,
-                icon = {
-                    Icon(
-                        imageVector = Icons.Outlined.List,
-                        contentDescription = "Runs"
-                    )
-                },
-                label = { Text("Runs") }
-            )
-
-            NavigationBarItem(
-                selected = false,
-                onClick = onProfileClick,
-                icon = {
-                    Icon(
-                        imageVector = Icons.Outlined.Person,
-                        contentDescription = "Profile"
-                    )
-                },
-                label = { Text("Profile") }
-            )
-        }
-
-        // Main action button for starting a run.
-        FloatingActionButton(
-            onClick = onStartRun,
-            containerColor = CurreLime,
-            contentColor = CurreNavy,
-            shape = CircleShape,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .offset(y = (-28).dp)
-                .size(74.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Bolt,
-                contentDescription = "Start Run"
-            )
         }
     }
 }

@@ -11,12 +11,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import edu.bu.cs411.group10.curre.ui.model.UserAccount
+import edu.bu.cs411.group10.curre.ui.screens.LoginScreen
+import edu.bu.cs411.group10.curre.ui.screens.SignUpScreen
 import edu.bu.cs411.group10.curre.ui.model.PastRun
 import edu.bu.cs411.group10.curre.ui.model.RunSummary
 import edu.bu.cs411.group10.curre.ui.screens.ActiveRunScreen
 import edu.bu.cs411.group10.curre.ui.screens.EndRunScreen
 import edu.bu.cs411.group10.curre.ui.screens.HomeScreen
 import edu.bu.cs411.group10.curre.ui.theme.CurreTheme
+import edu.bu.cs411.group10.curre.ui.model.EmergencyContact
+import edu.bu.cs411.group10.curre.ui.screens.SafetyMode
+import edu.bu.cs411.group10.curre.ui.screens.SafetyScreen
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
@@ -42,7 +48,10 @@ class MainActivity : ComponentActivity() {
 
 // Top-level screen state for the current prototype flow.
 private sealed class AppScreen {
+    data object Login : AppScreen()
+    data object SignUp : AppScreen()
     data object Home : AppScreen()
+    data object Safety : AppScreen()
     data object ActiveRun : AppScreen()
     data class EndRun(val summary: RunSummary) : AppScreen()
 }
@@ -50,7 +59,18 @@ private sealed class AppScreen {
 @Composable
 fun CurreApp() {
     // Tracks which screen is currently visible.
-    var currentScreen by remember { mutableStateOf<AppScreen>(AppScreen.Home) }
+    var currentScreen by remember { mutableStateOf<AppScreen>(AppScreen.SignUp) }
+
+    var registeredUsers by remember {
+        mutableStateOf(
+            listOf(
+                UserAccount(
+                    username = "demo",
+                    password = "Password1"
+                )
+            )
+        )
+    }
 
     val coroutineScope = rememberCoroutineScope()
 
@@ -70,6 +90,22 @@ fun CurreApp() {
 
     // Placeholder recent run data for the home screen.
     var pastRuns by remember { mutableStateOf<List<PastRun>>(emptyList()) }
+
+    var pausedByEndDialog by remember { mutableStateOf(false) }
+
+    var safetyMode by remember { mutableStateOf(SafetyMode.MODE_A) }
+
+    var emergencyContacts by remember {
+        mutableStateOf(
+            listOf(
+                EmergencyContact(
+                    id = 1,
+                    name = "Jane Doe",
+                    email = "jane@example.com"
+                )
+            )
+        )
+    }
 
     LaunchedEffect(currentScreen) {
         if (currentScreen is AppScreen.Home){
@@ -93,9 +129,46 @@ fun CurreApp() {
     }
 
     when (val screen = currentScreen) {
+        is AppScreen.Login -> {
+            LoginScreen(
+                onLogin = { username, password ->
+                    registeredUsers.any {
+                        it.username.equals(username, ignoreCase = true) &&
+                                it.password == password
+                    }
+                },
+                onGoToSignUp = {
+                    currentScreen = AppScreen.SignUp
+                },
+                onLoginSuccess = {
+                    currentScreen = AppScreen.Home
+                }
+            )
+        }
+
+        is AppScreen.SignUp -> {
+            SignUpScreen(
+                isUsernameTaken = { username ->
+                    registeredUsers.any { it.username.equals(username, ignoreCase = true) }
+                },
+                onCreateAccount = { username, password ->
+                    registeredUsers = registeredUsers + UserAccount(
+                        username = username,
+                        password = password
+                    )
+                },
+                onGoToLogin = {
+                    currentScreen = AppScreen.Login
+                },
+                onSignUpSuccess = {
+                    currentScreen = AppScreen.Home
+                }
+            )
+        }
+
         is AppScreen.Home -> {
             HomeScreen(
-                emergencyContactsCount = 1,
+                emergencyContactsCount = emergencyContacts.size,
                 weeklyMiles = 12.5,
                 streakDays = 20,
                 pastRuns = pastRuns,
@@ -107,7 +180,7 @@ fun CurreApp() {
                     currentScreen = AppScreen.ActiveRun
                 },
                 onSafetyClick = {
-                    // TODO: Add safety screen navigation later.
+                    currentScreen = AppScreen.Safety
                 },
                 onRunsClick = {
                     // TODO: Add runs screen navigation later.
@@ -117,9 +190,56 @@ fun CurreApp() {
                 },
                 onRecentRunClick = {
                     // TODO: Add run detail screen later.
+                },
+                onSignOut = {
+                    currentScreen = AppScreen.SignUp
                 }
             )
         }
+
+        is AppScreen.Safety -> {
+            SafetyScreen(
+                contacts = emergencyContacts,
+                selectedMode = safetyMode,
+                onModeChange = { safetyMode = it },
+                onAddContact = { name, email ->
+                    val nextId = (emergencyContacts.maxOfOrNull { it.id } ?: 0) + 1
+                    emergencyContacts = emergencyContacts + EmergencyContact(
+                        id = nextId,
+                        name = name,
+                        email = email
+                    )
+                },
+                onUpdateContact = { contactId, name, email ->
+                    emergencyContacts = emergencyContacts.map { contact ->
+                        if (contact.id == contactId) {
+                            contact.copy(name = name, email = email)
+                        } else {
+                            contact
+                        }
+                    }
+                },
+                onDeleteContact = { contactId ->
+                    emergencyContacts = emergencyContacts.filterNot { it.id == contactId }
+                },
+                onHomeClick = {
+                    currentScreen = AppScreen.Home
+                },
+                onStartRunClick = {
+                    accumulatedElapsedMillis = 0L
+                    runSegmentStartTimeMillis = System.currentTimeMillis()
+                    isPaused = false
+                    currentScreen = AppScreen.ActiveRun
+                },
+                onRunsClick = {
+                    // TODO
+                },
+                onProfileClick = {
+                    // TODO
+                }
+            )
+        }
+
 
         is AppScreen.ActiveRun -> {
             // Updates once per second while the run screen is open.
@@ -152,6 +272,7 @@ fun CurreApp() {
                         // Start a new running segment now, while preserving previous elapsed time.
                         runSegmentStartTimeMillis = System.currentTimeMillis()
                         isPaused = false
+                        pausedByEndDialog = false
                     } else {
                         // Pause:
                         // Save elapsed time up to this moment, then freeze.
@@ -193,6 +314,8 @@ fun CurreApp() {
                         }
                     }
 
+                    pausedByEndDialog = false
+
                     currentScreen = AppScreen.EndRun(
                         RunSummary(
                             miles = distance,
@@ -201,6 +324,23 @@ fun CurreApp() {
                             calories = estimatedCalories
                         )
                     )
+                },
+                onPauseForEndDialog = {
+                    if (!isPaused) {
+                        accumulatedElapsedMillis +=
+                            (System.currentTimeMillis() - runSegmentStartTimeMillis)
+                        isPaused = true
+                        pausedByEndDialog = true
+                    } else {
+                        pausedByEndDialog = false
+                    }
+                },
+                onResumeAfterEndDialogDismiss = {
+                    if (pausedByEndDialog) {
+                        runSegmentStartTimeMillis = System.currentTimeMillis()
+                        isPaused = false
+                        pausedByEndDialog = false
+                    }
                 }
             )
         }
