@@ -11,6 +11,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import edu.bu.cs411.group10.curre.ui.model.UserAccount
+import edu.bu.cs411.group10.curre.ui.screens.LoginScreen
+import edu.bu.cs411.group10.curre.ui.screens.SignUpScreen
 import edu.bu.cs411.group10.curre.ui.model.PastRun
 import edu.bu.cs411.group10.curre.ui.model.RunSummary
 import edu.bu.cs411.group10.curre.ui.screens.ActiveRunScreen
@@ -45,8 +48,9 @@ class MainActivity : ComponentActivity() {
 
 // Top-level screen state for the current prototype flow.
 private sealed class AppScreen {
+    data object Login : AppScreen()
+    data object SignUp : AppScreen()
     data object Home : AppScreen()
-
     data object Safety : AppScreen()
     data object ActiveRun : AppScreen()
     data class EndRun(val summary: RunSummary) : AppScreen()
@@ -55,7 +59,18 @@ private sealed class AppScreen {
 @Composable
 fun CurreApp() {
     // Tracks which screen is currently visible.
-    var currentScreen by remember { mutableStateOf<AppScreen>(AppScreen.Home) }
+    var currentScreen by remember { mutableStateOf<AppScreen>(AppScreen.SignUp) }
+
+    var registeredUsers by remember {
+        mutableStateOf(
+            listOf(
+                UserAccount(
+                    username = "demo",
+                    password = "Password1"
+                )
+            )
+        )
+    }
 
     val coroutineScope = rememberCoroutineScope()
 
@@ -114,6 +129,43 @@ fun CurreApp() {
     }
 
     when (val screen = currentScreen) {
+        is AppScreen.Login -> {
+            LoginScreen(
+                onLogin = { username, password ->
+                    registeredUsers.any {
+                        it.username.equals(username, ignoreCase = true) &&
+                                it.password == password
+                    }
+                },
+                onGoToSignUp = {
+                    currentScreen = AppScreen.SignUp
+                },
+                onLoginSuccess = {
+                    currentScreen = AppScreen.Home
+                }
+            )
+        }
+
+        is AppScreen.SignUp -> {
+            SignUpScreen(
+                isUsernameTaken = { username ->
+                    registeredUsers.any { it.username.equals(username, ignoreCase = true) }
+                },
+                onCreateAccount = { username, password ->
+                    registeredUsers = registeredUsers + UserAccount(
+                        username = username,
+                        password = password
+                    )
+                },
+                onGoToLogin = {
+                    currentScreen = AppScreen.Login
+                },
+                onSignUpSuccess = {
+                    currentScreen = AppScreen.Home
+                }
+            )
+        }
+
         is AppScreen.Home -> {
             HomeScreen(
                 emergencyContactsCount = emergencyContacts.size,
