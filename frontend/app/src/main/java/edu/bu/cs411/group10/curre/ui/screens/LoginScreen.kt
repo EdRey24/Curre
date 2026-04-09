@@ -54,6 +54,7 @@ fun LoginScreen(
     val usernameInteractionSource = remember { MutableInteractionSource() }
     val usernameFocused by usernameInteractionSource.collectIsFocusedAsState()
 
+    // Mainscreen container
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = CurreBackground
@@ -68,8 +69,10 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top
         ) {
+            // Top spacing
             Spacer(modifier = Modifier.height(50.dp))
 
+            // Title + subtitle
             AuthHeader(
                 title = "Welcome Back",
                 subtitle = "Log in to continue running with Curre!"
@@ -77,6 +80,7 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(34.dp))
 
+            // card container for nputs
             AuthCard {
                 Text(
                     text = "Username",
@@ -125,6 +129,7 @@ fun LoginScreen(
                     helperText = "Enter your password"
                 )
 
+                // error message
                 if (errorMessage.isNotBlank()) {
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
@@ -135,11 +140,12 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                // login button
                 Button(
                     onClick = {
                         val success = onLogin(username.trim(), password)
                         if (success) {
-                            onLoginSuccess()
+                            onLoginSuccess()  // go to homescreen
                         } else {
                             errorMessage = "Incorrect username or password"
                         }
@@ -162,6 +168,7 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(26.dp))
 
+            // switch to signup
             TextButton(onClick = onGoToSignUp) {
                 Text(
                     text = "Don't have an account? Sign Up",

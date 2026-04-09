@@ -190,6 +190,9 @@ fun CurreApp() {
                 },
                 onRecentRunClick = {
                     // TODO: Add run detail screen later.
+                },
+                onSignOut = {
+                    currentScreen = AppScreen.SignUp
                 }
             )
         }

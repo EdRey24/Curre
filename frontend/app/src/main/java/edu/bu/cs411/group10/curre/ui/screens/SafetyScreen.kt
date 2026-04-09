@@ -270,6 +270,7 @@ fun SafetyScreen(
         }
     }
 
+    // add new contact
     if (showAddDialog) {
         ContactEditorDialog(
             title = "Add New Contact",
@@ -284,6 +285,7 @@ fun SafetyScreen(
         )
     }
 
+    // editing contact
     contactBeingEdited?.let { contact ->
         ContactEditorDialog(
             title = "Edit Contact",
@@ -298,6 +300,7 @@ fun SafetyScreen(
         )
     }
 
+    // deleting contact confirmation
     contactPendingDelete?.let { contact ->
         AlertDialog(
             onDismissRequest = { contactPendingDelete = null },

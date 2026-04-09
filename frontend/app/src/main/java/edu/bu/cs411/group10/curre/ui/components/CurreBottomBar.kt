@@ -59,6 +59,7 @@ fun CurreBottomBar(
                 )
         ) {
 
+            // Homescreen button
             NavigationBarItem(
                 selected = selectedTab == BottomNavTab.HOME,
                 onClick = onHomeClick,
@@ -72,6 +73,7 @@ fun CurreBottomBar(
                 label = { Text("Home") }
             )
 
+            // Safety screen button
             NavigationBarItem(
                 selected = selectedTab == BottomNavTab.SAFETY,
                 onClick = onSafetyClick,
@@ -94,6 +96,7 @@ fun CurreBottomBar(
                 label = { Text("") }
             )
 
+            // Run summary screen button
             NavigationBarItem(
                 selected = selectedTab == BottomNavTab.RUNS,
                 onClick = onRunsClick,
@@ -107,6 +110,7 @@ fun CurreBottomBar(
                 label = { Text("Runs") }
             )
 
+            // profile screen button
             NavigationBarItem(
                 selected = selectedTab == BottomNavTab.PROFILE,
                 onClick = onProfileClick,

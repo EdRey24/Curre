@@ -31,18 +31,21 @@ import edu.bu.cs411.group10.curre.ui.theme.CurreOrange
 import edu.bu.cs411.group10.curre.ui.theme.CurreOrangeSoft
 import edu.bu.cs411.group10.curre.ui.theme.CurreTextMuted
 
+// Displays a safety/emergency banner on the home screen
 @Composable
 fun AlertBanner(
     contactsCount: Int,
     title: String = "Emergency Alert Ready",
     subtitle: String = "Stay safe on every adventure!"
 ) {
+    // outer card container
     Card(
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(20.dp), // rounded corners
         colors = CardDefaults.cardColors(containerColor = CurreOrangeSoft),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
+        // Horizontal layout inside the card
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -50,19 +53,24 @@ fun AlertBanner(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Start
         ) {
+            // left spacing
             Spacer(modifier = Modifier.width(18.dp))
 
+            // warning icon
             Icon(
                 imageVector = Icons.Outlined.WarningAmber,
                 contentDescription = "Emergency alert",
                 tint = CurreOrange
             )
 
+            // space between icon and text
             Spacer(modifier = Modifier.width(14.dp))
 
+            // text section
             Column(
                 modifier = Modifier.weight(1f)
             ) {
+                // title text
                 Text(
                     text = title,
                     color = CurreNavy,
@@ -70,6 +78,8 @@ fun AlertBanner(
                     fontSize = 16.sp
                 )
                 Spacer(modifier = Modifier.height(4.dp))
+
+                // subtitle text
                 Text(
                     text = subtitle,
                     color = CurreTextMuted,
@@ -77,9 +87,10 @@ fun AlertBanner(
                 )
             }
 
+            // circle badge showing number of emergency contacts
             Box(
                 modifier = Modifier
-                    .size(32.dp)
+                    .size(32.dp) // circle size
                     .clip(CircleShape)
                     .background(CurreOrange),
                 contentAlignment = Alignment.Center
@@ -91,6 +102,7 @@ fun AlertBanner(
                 )
             }
 
+            // right spacing
             Spacer(modifier = Modifier.width(18.dp))
         }
     }

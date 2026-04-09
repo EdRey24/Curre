@@ -1,34 +1,22 @@
 package edu.bu.cs411.group10.curre.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.List
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Security
-import androidx.compose.material.icons.outlined.WarningAmber
-import androidx.compose.material.icons.rounded.Bolt
-import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.LocationOn
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -40,14 +28,10 @@ import edu.bu.cs411.group10.curre.ui.components.RecentRunItem
 import edu.bu.cs411.group10.curre.ui.components.StatCard
 import edu.bu.cs411.group10.curre.ui.model.PastRun
 import edu.bu.cs411.group10.curre.ui.theme.CurreBackground
-import edu.bu.cs411.group10.curre.ui.theme.CurreIconMuted
-import edu.bu.cs411.group10.curre.ui.theme.CurreLime
 import edu.bu.cs411.group10.curre.ui.theme.CurreNavy
 import edu.bu.cs411.group10.curre.ui.theme.CurreOrange
-import edu.bu.cs411.group10.curre.ui.theme.CurreOrangeSoft
 import edu.bu.cs411.group10.curre.ui.theme.CurreStreakCard
 import edu.bu.cs411.group10.curre.ui.theme.CurreSurface
-import edu.bu.cs411.group10.curre.ui.theme.CurreSurfaceSoft
 import edu.bu.cs411.group10.curre.ui.theme.CurreTextMuted
 
 @Composable
@@ -60,7 +44,8 @@ fun HomeScreen(
     onSafetyClick: () -> Unit,
     onRunsClick: () -> Unit,
     onProfileClick: () -> Unit,
-    onRecentRunClick: (PastRun) -> Unit
+    onRecentRunClick: (PastRun) -> Unit,
+    onSignOut: () -> Unit
 ) {
     // Scaffold gives us a main app layout with a fixed bottom bar.
     Scaffold(
@@ -86,6 +71,20 @@ fun HomeScreen(
             contentPadding = PaddingValues(top = 20.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onSignOut) {
+                        Text(
+                            text = "Sign Out",
+                            color = CurreTextMuted,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
             // App title
             item {
                 Text(
