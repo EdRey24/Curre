@@ -62,6 +62,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import edu.bu.cs411.group10.curre.ui.components.BottomNavTab
+import edu.bu.cs411.group10.curre.ui.components.CurreBottomBar
 import edu.bu.cs411.group10.curre.ui.model.EmergencyContact
 import edu.bu.cs411.group10.curre.ui.theme.CurreBackground
 import edu.bu.cs411.group10.curre.ui.theme.CurreLime
@@ -96,8 +98,10 @@ fun SafetyScreen(
     Scaffold(
         containerColor = CurreBackground,
         bottomBar = {
-            SafetyBottomBar(
+            CurreBottomBar(
+                selectedTab = BottomNavTab.SAFETY,
                 onHomeClick = onHomeClick,
+                onSafetyClick = { },
                 onStartRunClick = onStartRunClick,
                 onRunsClick = onRunsClick,
                 onProfileClick = onProfileClick
@@ -606,133 +610,6 @@ private fun EmptyContactsCard() {
                 text = "No emergency contacts yet",
                 color = CurreTextMuted,
                 fontSize = 15.sp
-            )
-        }
-    }
-}
-
-@Composable
-private fun SafetyBottomBar(
-    onHomeClick: () -> Unit,
-    onStartRunClick: () -> Unit,
-    onRunsClick: () -> Unit,
-    onProfileClick: () -> Unit
-) {
-    Box {
-        NavigationBar(
-            containerColor = Color.White
-        ) {
-            NavigationBarItem(
-                selected = false,
-                onClick = onHomeClick,
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = CurreLime,
-                    selectedTextColor = CurreLime,
-                    indicatorColor = Color.Transparent,
-                    unselectedIconColor = CurreTextMuted,
-                    unselectedTextColor = CurreTextMuted
-                ),
-                icon = {
-                    Icon(
-                        imageVector = Icons.Outlined.Home,
-                        contentDescription = "Home"
-                    )
-                },
-                label = { Text("Home") }
-            )
-
-            NavigationBarItem(
-                selected = true,
-                onClick = { },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = CurreLime,
-                    selectedTextColor = CurreLime,
-                    indicatorColor = Color.Transparent,
-                    unselectedIconColor = CurreTextMuted,
-                    unselectedTextColor = CurreTextMuted
-                ),
-                icon = {
-                    Icon(
-                        imageVector = Icons.Outlined.Security,
-                        contentDescription = "Safety",
-                        tint = CurreLime
-                    )
-                },
-                label = {
-                    Text(
-                        text = "Safety",
-                        color = CurreLime
-                    )
-                }
-            )
-
-            NavigationBarItem(
-                selected = false,
-                onClick = { },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = CurreLime,
-                    selectedTextColor = CurreLime,
-                    indicatorColor = Color.Transparent,
-                    unselectedIconColor = CurreTextMuted,
-                    unselectedTextColor = CurreTextMuted
-                ),
-                icon = { Spacer(modifier = Modifier.size(24.dp)) },
-                label = { Text("") }
-            )
-
-            NavigationBarItem(
-                selected = false,
-                onClick = onRunsClick,
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = CurreLime,
-                    selectedTextColor = CurreLime,
-                    indicatorColor = Color.Transparent,
-                    unselectedIconColor = CurreTextMuted,
-                    unselectedTextColor = CurreTextMuted
-                ),
-                icon = {
-                    Icon(
-                        imageVector = Icons.Outlined.List,
-                        contentDescription = "Runs"
-                    )
-                },
-                label = { Text("Runs") }
-            )
-
-            NavigationBarItem(
-                selected = false,
-                onClick = onProfileClick,
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = CurreLime,
-                    selectedTextColor = CurreLime,
-                    indicatorColor = Color.Transparent,
-                    unselectedIconColor = CurreTextMuted,
-                    unselectedTextColor = CurreTextMuted
-                ),
-                icon = {
-                    Icon(
-                        imageVector = Icons.Outlined.Person,
-                        contentDescription = "Profile"
-                    )
-                },
-                label = { Text("Profile") }
-            )
-        }
-
-        FloatingActionButton(
-            onClick = onStartRunClick,
-            containerColor = CurreLime,
-            contentColor = CurreNavy,
-            shape = CircleShape,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 2.dp)
-                .size(78.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Bolt,
-                contentDescription = "Start Run",
-                modifier = Modifier.size(36.dp)
             )
         }
     }
