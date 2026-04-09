@@ -20,6 +20,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -372,6 +373,13 @@ private fun HomeBottomBar(
             NavigationBarItem(
                 selected = true,
                 onClick = { },
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = CurreLime,
+                    selectedTextColor = CurreLime,
+                    indicatorColor = Color.Transparent,
+                    unselectedIconColor = CurreTextMuted,
+                    unselectedTextColor = CurreTextMuted
+                ),
                 icon = {
                     Icon(
                         imageVector = Icons.Outlined.Home,
@@ -384,6 +392,13 @@ private fun HomeBottomBar(
             NavigationBarItem(
                 selected = false,
                 onClick = onSafetyClick,
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = CurreLime,
+                    selectedTextColor = CurreLime,
+                    indicatorColor = Color.Transparent,
+                    unselectedIconColor = CurreTextMuted,
+                    unselectedTextColor = CurreTextMuted
+                ),
                 icon = {
                     Icon(
                         imageVector = Icons.Outlined.Security,
@@ -397,6 +412,13 @@ private fun HomeBottomBar(
             NavigationBarItem(
                 selected = false,
                 onClick = { },
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = CurreLime,
+                    selectedTextColor = CurreLime,
+                    indicatorColor = Color.Transparent,
+                    unselectedIconColor = CurreTextMuted,
+                    unselectedTextColor = CurreTextMuted
+                ),
                 icon = { Spacer(modifier = Modifier.size(24.dp)) },
                 label = { Text("") }
             )
@@ -404,6 +426,13 @@ private fun HomeBottomBar(
             NavigationBarItem(
                 selected = false,
                 onClick = onRunsClick,
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = CurreLime,
+                    selectedTextColor = CurreLime,
+                    indicatorColor = Color.Transparent,
+                    unselectedIconColor = CurreTextMuted,
+                    unselectedTextColor = CurreTextMuted
+                ),
                 icon = {
                     Icon(
                         imageVector = Icons.Outlined.List,
@@ -416,6 +445,13 @@ private fun HomeBottomBar(
             NavigationBarItem(
                 selected = false,
                 onClick = onProfileClick,
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = CurreLime,
+                    selectedTextColor = CurreLime,
+                    indicatorColor = Color.Transparent,
+                    unselectedIconColor = CurreTextMuted,
+                    unselectedTextColor = CurreTextMuted
+                ),
                 icon = {
                     Icon(
                         imageVector = Icons.Outlined.Person,

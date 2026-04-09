@@ -17,6 +17,9 @@ import edu.bu.cs411.group10.curre.ui.screens.ActiveRunScreen
 import edu.bu.cs411.group10.curre.ui.screens.EndRunScreen
 import edu.bu.cs411.group10.curre.ui.screens.HomeScreen
 import edu.bu.cs411.group10.curre.ui.theme.CurreTheme
+import edu.bu.cs411.group10.curre.ui.model.EmergencyContact
+import edu.bu.cs411.group10.curre.ui.screens.SafetyMode
+import edu.bu.cs411.group10.curre.ui.screens.SafetyScreen
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
@@ -43,6 +46,8 @@ class MainActivity : ComponentActivity() {
 // Top-level screen state for the current prototype flow.
 private sealed class AppScreen {
     data object Home : AppScreen()
+
+    data object Safety : AppScreen()
     data object ActiveRun : AppScreen()
     data class EndRun(val summary: RunSummary) : AppScreen()
 }
@@ -73,6 +78,20 @@ fun CurreApp() {
 
     var pausedByEndDialog by remember { mutableStateOf(false) }
 
+    var safetyMode by remember { mutableStateOf(SafetyMode.MODE_A) }
+
+    var emergencyContacts by remember {
+        mutableStateOf(
+            listOf(
+                EmergencyContact(
+                    id = 1,
+                    name = "Jane Doe",
+                    email = "jane@example.com"
+                )
+            )
+        )
+    }
+
     LaunchedEffect(currentScreen) {
         if (currentScreen is AppScreen.Home){
             try {
@@ -97,7 +116,7 @@ fun CurreApp() {
     when (val screen = currentScreen) {
         is AppScreen.Home -> {
             HomeScreen(
-                emergencyContactsCount = 1,
+                emergencyContactsCount = emergencyContacts.size,
                 weeklyMiles = 12.5,
                 streakDays = 20,
                 pastRuns = pastRuns,
@@ -109,7 +128,7 @@ fun CurreApp() {
                     currentScreen = AppScreen.ActiveRun
                 },
                 onSafetyClick = {
-                    // TODO: Add safety screen navigation later.
+                    currentScreen = AppScreen.Safety
                 },
                 onRunsClick = {
                     // TODO: Add runs screen navigation later.
@@ -122,6 +141,50 @@ fun CurreApp() {
                 }
             )
         }
+
+        is AppScreen.Safety -> {
+            SafetyScreen(
+                contacts = emergencyContacts,
+                selectedMode = safetyMode,
+                onModeChange = { safetyMode = it },
+                onAddContact = { name, email ->
+                    val nextId = (emergencyContacts.maxOfOrNull { it.id } ?: 0) + 1
+                    emergencyContacts = emergencyContacts + EmergencyContact(
+                        id = nextId,
+                        name = name,
+                        email = email
+                    )
+                },
+                onUpdateContact = { contactId, name, email ->
+                    emergencyContacts = emergencyContacts.map { contact ->
+                        if (contact.id == contactId) {
+                            contact.copy(name = name, email = email)
+                        } else {
+                            contact
+                        }
+                    }
+                },
+                onDeleteContact = { contactId ->
+                    emergencyContacts = emergencyContacts.filterNot { it.id == contactId }
+                },
+                onHomeClick = {
+                    currentScreen = AppScreen.Home
+                },
+                onStartRunClick = {
+                    accumulatedElapsedMillis = 0L
+                    runSegmentStartTimeMillis = System.currentTimeMillis()
+                    isPaused = false
+                    currentScreen = AppScreen.ActiveRun
+                },
+                onRunsClick = {
+                    // TODO
+                },
+                onProfileClick = {
+                    // TODO
+                }
+            )
+        }
+
 
         is AppScreen.ActiveRun -> {
             // Updates once per second while the run screen is open.
