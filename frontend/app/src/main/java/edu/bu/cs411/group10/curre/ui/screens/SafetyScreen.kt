@@ -1,4 +1,4 @@
-package edu.bu.cs411.group10.curre.ui.screens
+package edu.bu.cs411.group10.curre.ui.screens // Interaction with screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
