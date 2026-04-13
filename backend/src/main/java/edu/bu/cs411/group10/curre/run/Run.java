@@ -1,11 +1,10 @@
 package edu.bu.cs411.group10.curre.run;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+
+import java.util.List;
+
 @Entity
 @Table(name = "runs")
 public class Run {
@@ -30,6 +29,10 @@ public class Run {
 
     @Column(name = "calories", nullable = false)
     private Integer calories;
+
+    @OneToMany(mappedBy = "run", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
+    private List<RoutePoint> routePoints;
 
     public Run(){}
 
@@ -87,5 +90,16 @@ public class Run {
 
     public void setCalories(Integer calories){
         this.calories = calories;
+    }
+
+    public List<RoutePoint> getRoutePoints() {return routePoints;}
+
+    public void setRoutePoints(List<RoutePoint> routePoints){
+        this.routePoints = routePoints;
+        if(routePoints != null){
+            for(RoutePoint point : routePoints){
+                point.setRun(this);
+            }
+        }
     }
 }
