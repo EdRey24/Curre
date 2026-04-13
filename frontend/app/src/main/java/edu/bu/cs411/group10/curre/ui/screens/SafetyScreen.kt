@@ -24,25 +24,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.List
 import androidx.compose.material.icons.outlined.NotificationsNone
-import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.PersonAddAlt1
 import androidx.compose.material.icons.outlined.PersonOutline
-import androidx.compose.material.icons.outlined.Security
-import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -76,16 +68,17 @@ import edu.bu.cs411.group10.curre.ui.theme.CurreTextMuted
 enum class SafetyMode {
     MODE_A,
     MODE_B
-}
+} // END OF ENUM SafetyMode
 
 @Composable
 fun SafetyScreen(
     contacts: List<EmergencyContact>,
+    isLoading: Boolean = false,
     selectedMode: SafetyMode,
     onModeChange: (SafetyMode) -> Unit,
     onAddContact: (String, String) -> Unit,
-    onUpdateContact: (Int, String, String) -> Unit,
-    onDeleteContact: (Int) -> Unit,
+    onUpdateContact: (Long, String, String) -> Unit,   // changed from Int to Long
+    onDeleteContact: (Long) -> Unit,                   // changed from Int to Long
     onHomeClick: () -> Unit,
     onStartRunClick: () -> Unit,
     onRunsClick: () -> Unit,
@@ -106,7 +99,7 @@ fun SafetyScreen(
                 onRunsClick = onRunsClick,
                 onProfileClick = onProfileClick
             )
-        }
+        } // END OF bottomBar
     ) { innerPadding ->
         Surface(
             modifier = Modifier.fillMaxSize(),
@@ -121,6 +114,16 @@ fun SafetyScreen(
                     .navigationBarsPadding()
             ) {
                 Spacer(modifier = Modifier.height(8.dp))
+
+                if (isLoading) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = CurreLime)
+                    } // END OF Box
+                    Spacer(modifier = Modifier.height(24.dp))
+                } // END OF IF-BLOCK
 
                 Text(
                     text = "Safety",
@@ -188,9 +191,9 @@ fun SafetyScreen(
 
                 Spacer(modifier = Modifier.height(22.dp))
 
-                if (contacts.isEmpty()) {
+                if (contacts.isEmpty() && !isLoading) {
                     EmptyContactsCard()
-                } else {
+                } else if (!isLoading) {
                     contacts.forEach { contact ->
                         ContactCard(
                             contact = contact,
@@ -202,8 +205,8 @@ fun SafetyScreen(
                             }
                         )
                         Spacer(modifier = Modifier.height(18.dp))
-                    }
-                }
+                    } // END OF forEach
+                } // END OF IF-ELSE
 
                 Spacer(modifier = Modifier.height(18.dp))
 
@@ -266,11 +269,10 @@ fun SafetyScreen(
                 }
 
                 Spacer(modifier = Modifier.height(18.dp))
-            }
-        }
-    }
+            } // END OF Column
+        } // END OF Surface
+    } // END OF Scaffold
 
-    // add new contact
     if (showAddDialog) {
         ContactEditorDialog(
             title = "Add New Contact",
@@ -283,9 +285,8 @@ fun SafetyScreen(
                 showAddDialog = false
             }
         )
-    }
+    } // END OF IF-BLOCK
 
-    // editing contact
     contactBeingEdited?.let { contact ->
         ContactEditorDialog(
             title = "Edit Contact",
@@ -298,9 +299,8 @@ fun SafetyScreen(
                 contactBeingEdited = null
             }
         )
-    }
+    } // END OF let
 
-    // deleting contact confirmation
     contactPendingDelete?.let { contact ->
         AlertDialog(
             onDismissRequest = { contactPendingDelete = null },
@@ -340,8 +340,8 @@ fun SafetyScreen(
                 }
             }
         )
-    }
-}
+    } // END OF let
+} // END OF FUNCTION SafetyScreen
 
 private fun isValidEmail(email: String): Boolean {
     val trimmed = email.trim()
@@ -349,7 +349,7 @@ private fun isValidEmail(email: String): Boolean {
             trimmed.substringAfter("@").contains(".") &&
             !trimmed.startsWith("@") &&
             !trimmed.endsWith("@")
-}
+} // END OF FUNCTION isValidEmail
 
 @Composable
 private fun ContactEditorDialog(
@@ -405,8 +405,8 @@ private fun ContactEditorDialog(
                         color = CurreOrange,
                         fontSize = 13.sp
                     )
-                }
-            }
+                } // END OF IF-BLOCK
+            } // END OF Column
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
@@ -430,7 +430,7 @@ private fun ContactEditorDialog(
             }
         }
     )
-}
+} // END OF FUNCTION ContactEditorDialog
 
 @Composable
 private fun SafetyModeCard(
@@ -473,8 +473,8 @@ private fun SafetyModeCard(
                             .clip(CircleShape)
                             .background(Color.White)
                     )
-                }
-            }
+                } // END OF IF-BLOCK
+            } // END OF Box
 
             Spacer(modifier = Modifier.width(18.dp))
 
@@ -491,10 +491,10 @@ private fun SafetyModeCard(
                     color = subtitleColor,
                     fontSize = 14.sp
                 )
-            }
-        }
-    }
-}
+            } // END OF Column
+        } // END OF Row
+    } // END OF Card
+} // END OF FUNCTION SafetyModeCard
 
 @Composable
 private fun ContactCard(
@@ -527,7 +527,7 @@ private fun ContactCard(
                     tint = CurreTextMuted,
                     modifier = Modifier.size(34.dp)
                 )
-            }
+            } // END OF Box
 
             Spacer(modifier = Modifier.width(18.dp))
 
@@ -546,7 +546,7 @@ private fun ContactCard(
                     color = CurreTextMuted,
                     fontSize = 14.sp
                 )
-            }
+            } // END OF Column
 
             Box(
                 modifier = Modifier
@@ -561,8 +561,8 @@ private fun ContactCard(
                         contentDescription = "Edit contact",
                         tint = CurreOrange
                     )
-                }
-            }
+                } // END OF IconButton
+            } // END OF Box
 
             Spacer(modifier = Modifier.width(12.dp))
 
@@ -581,10 +581,10 @@ private fun ContactCard(
                     imageVector = Icons.Outlined.Delete,
                     contentDescription = "Delete contact"
                 )
-            }
-        }
-    }
-}
+            } // END OF OutlinedButton
+        } // END OF Row
+    } // END OF Card
+} // END OF FUNCTION ContactCard
 
 @Composable
 private fun EmptyContactsCard() {
@@ -614,6 +614,6 @@ private fun EmptyContactsCard() {
                 color = CurreTextMuted,
                 fontSize = 15.sp
             )
-        }
-    }
-}
+        } // END OF Column
+    } // END OF Card
+} // END OF FUNCTION EmptyContactsCard
