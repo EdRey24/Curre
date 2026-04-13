@@ -64,7 +64,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation("androidx.compose.material:material-icons-extended")
     implementation(libs.play.services.location)
-    implementation(libs.play.services.maps)
+    implementation(libs.osmdroid.android)
     implementation(libs.maps.compose)
     testImplementation(libs.junit)
     testImplementation(libs.mockito.core)

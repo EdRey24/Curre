@@ -18,6 +18,7 @@ mockitoCore = "5.23.0"
 mockitoKotlin = "6.3.0"
 navigationCompose = "2.9.7"
 okhttp = "5.3.2"
+osmdroidAndroid = "6.1.20"
 playServicesLocation = "21.3.0"
 playServicesLocationVersion = "21.2.0"
 playServicesMaps = "20.0.0"
@@ -56,6 +57,7 @@ maps-compose = { module = "com.google.maps.android:maps-compose", version.ref = 
 mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockitoCore" }
 mockito-kotlin = { module = "org.mockito.kotlin:mockito-kotlin", version.ref = "mockitoKotlin" }
 okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
+osmdroid-android = { module = "org.osmdroid:osmdroid-android", version.ref = "osmdroidAndroid" }
 play-services-location = { module = "com.google.android.gms:play-services-location", version.ref = "playServicesLocation" }
 play-services-location-v2120 = { module = "com.google.android.gms:play-services-location", version.ref = "playServicesLocationVersion" }
 play-services-maps = { module = "com.google.android.gms:play-services-maps", version.ref = "playServicesMaps" }
