@@ -1,2 +1,1 @@
-ALTER TABLE runs ADD COLUMN user_id INTEGER;
-ALTER TABLE runs ADD CONSTRAINT fk_runs_user FOREIGN KEY (user_id) REFERENCES users(id);
+ALTER TABLE runs ADD COLUMN user_id INTEGER REFERENCES users(id);
