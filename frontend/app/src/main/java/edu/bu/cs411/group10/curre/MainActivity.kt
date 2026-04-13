@@ -409,7 +409,8 @@ fun CurreApp() {
                             miles = distance,
                             durationText = formatSummaryDuration(finalElapsedMillis),
                             avgPaceText = formattedPace,
-                            calories = estimatedCalories
+                            calories = estimatedCalories,
+                            routePoints = routePoints
                         )
                     )
                 },
