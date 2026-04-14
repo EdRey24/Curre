@@ -7,6 +7,8 @@ import edu.bu.cs411.group10.curre.run.RunRepository;
 import edu.bu.cs411.group10.curre.user.User;
 import edu.bu.cs411.group10.curre.user.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
@@ -17,13 +19,13 @@ import java.util.stream.Collectors;
 @Service
 public class SafetyService {
 
+    private static final Logger log = LoggerFactory.getLogger(SafetyService.class);
     private final SafetySessionRepository sessionRepository;
     private final RunRepository runRepository;
     private final UserRepository userRepository;
     private final EmergencyContactRepository contactRepository;
     private final NotificationService notificationService;
 
-    // In-memory map to store scheduled futures (runId -> ScheduledFuture)
     private final ConcurrentHashMap<Long, ScheduledFuture<?>> scheduledTasks = new ConcurrentHashMap<>();
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
@@ -39,21 +41,30 @@ public class SafetyService {
         this.notificationService = notificationService;
     }
 
+    private User getOrCreateUser(Long userId) {
+        String email = "user" + userId + "@curre.com";
+        return userRepository.findByEmail(email)
+                .orElseGet(() -> {
+                    User newUser = new User();
+                    // Do NOT set ID; let database auto‑generate
+                    newUser.setEmail(email);
+                    newUser.setPassword("default");
+                    User saved = userRepository.save(newUser);
+                    log.info("SafetyService: Auto‑created user with email {} and ID {}", email, saved.getId()); // DEBUG
+                    return saved;
+                });
+    } // END OF METHOD getOrCreateUser
+
     @Transactional
     public void startSafetyMonitoring(Long runId, Long userId, Integer checkInIntervalSeconds) {
-        // Verify run exists and belongs to user
         Run run = runRepository.findById(runId)
                 .orElseThrow(() -> new EntityNotFoundException("Run not found with id: " + runId));
-        // For simplicity, assume run has userId column. We'll add that later.
-        // In this demo, we skip run ownership check or assume it's passed.
 
-        // Check if user has at least one emergency contact
         List<EmergencyContact> contacts = contactRepository.findByUserId(userId);
         if (contacts.isEmpty()) {
             throw new IllegalStateException("Cannot enable safety: no emergency contacts added");
         }
 
-        // Deactivate any existing active session for this run
         sessionRepository.findByRunIdAndActiveTrue(runId).ifPresent(session -> {
             session.setActive(false);
             sessionRepository.save(session);
@@ -68,14 +79,12 @@ public class SafetyService {
         session.setActive(true);
         sessionRepository.save(session);
 
-        // Schedule overdue task
         scheduleOverdueCheck(runId, userId, checkInIntervalSeconds);
 
-        // Send "run started" notification
-        User user = userRepository.findById(userId).orElseThrow();
+        User user = getOrCreateUser(userId);
         List<String> contactEmails = contacts.stream().map(EmergencyContact::getEmail).collect(Collectors.toList());
-        // In real app we would get last known location from run's route points; use null for mock
         notificationService.sendRunStartedNotification(user.getEmail(), contactEmails, null, null);
+        log.info("Started safety monitoring for run {} user {}", runId, userId); // DEBUG
     } // END OF METHOD startSafetyMonitoring
 
     @Transactional
@@ -88,52 +97,43 @@ public class SafetyService {
         session.setLastCheckIn(Instant.now());
         sessionRepository.save(session);
 
-        // Cancel old scheduled task and reschedule
         cancelScheduledTask(runId);
         scheduleOverdueCheck(runId, userId, session.getCheckInIntervalSeconds());
+        log.info("Check‑in received for run {} user {}", runId, userId); // DEBUG
     } // END OF METHOD checkIn
 
     @Transactional
     public void stopSafetyMonitoring(Long runId, Long userId) {
-        SafetySession session = sessionRepository.findByRunIdAndActiveTrue(runId)
-                .orElse(null);
+        SafetySession session = sessionRepository.findByRunIdAndActiveTrue(runId).orElse(null);
         if (session != null && session.getUserId().equals(userId)) {
             session.setActive(false);
             sessionRepository.save(session);
             cancelScheduledTask(runId);
 
-            // Send "run ended" notification
-            User user = userRepository.findById(userId).orElseThrow();
+            User user = getOrCreateUser(userId);
             List<EmergencyContact> contacts = contactRepository.findByUserId(userId);
             List<String> contactEmails = contacts.stream().map(EmergencyContact::getEmail).collect(Collectors.toList());
             notificationService.sendRunEndedNotification(user.getEmail(), contactEmails);
+            log.info("Stopped safety monitoring for run {} user {}", runId, userId); // DEBUG
         }
     } // END OF METHOD stopSafetyMonitoring
 
     private void scheduleOverdueCheck(Long runId, Long userId, int delaySeconds) {
         Runnable overdueTask = () -> {
-            // Re-fetch session to ensure still active and check-in not refreshed
             SafetySession session = sessionRepository.findByRunIdAndActiveTrue(runId).orElse(null);
             if (session == null || !session.isActive()) return;
             Instant now = Instant.now();
             if (now.isAfter(session.getLastCheckIn().plusSeconds(delaySeconds))) {
-                // Overdue: notify contacts
-                User user = userRepository.findById(userId).orElse(null);
-                if (user != null) {
-                    List<EmergencyContact> contacts = contactRepository.findByUserId(userId);
-                    List<String> contactEmails = contacts.stream().map(EmergencyContact::getEmail).collect(Collectors.toList());
-                    // Use last known location from run's route points if available; null for now
-                    notificationService.sendOverdueAlert(user.getEmail(), contactEmails, null, null);
-                }
-                // Optionally deactivate session after alert to avoid repeated alerts
+                User user = getOrCreateUser(userId);
+                List<EmergencyContact> contacts = contactRepository.findByUserId(userId);
+                List<String> contactEmails = contacts.stream().map(EmergencyContact::getEmail).collect(Collectors.toList());
+                notificationService.sendOverdueAlert(user.getEmail(), contactEmails, null, null);
                 if (session != null) {
                     session.setActive(false);
                     sessionRepository.save(session);
                 }
                 cancelScheduledTask(runId);
-            } else {
-                // Not overdue yet, reschedule? Actually the schedule is one-shot, so we rely on check-in to reschedule.
-                // If this task runs early due to clock skew, we could reschedule, but for simplicity we do nothing.
+                log.warn("Overdue alert sent for run {} user {}", runId, userId); // DEBUG
             }
         };
         ScheduledFuture<?> future = scheduler.schedule(overdueTask, delaySeconds, TimeUnit.SECONDS);
