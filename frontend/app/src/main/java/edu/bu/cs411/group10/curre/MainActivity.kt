@@ -202,6 +202,8 @@ fun CurreApp() {
             isPaused = false
             currentRunId = null
             currentScreen = AppScreen.ActiveRun
+            routePoints = emptyList()
+            dynamicDistanceMiles = 0.0
         }
     }
 
