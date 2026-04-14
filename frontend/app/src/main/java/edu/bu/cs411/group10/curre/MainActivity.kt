@@ -58,7 +58,7 @@ import androidx.compose.material3.*
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import kotlin.concurrent.timer
+import kotlin.collections.emptyList
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -138,8 +138,9 @@ fun CurreApp() {
 
     val context = LocalContext.current
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
-    var routePoints by remember { mutableStateOf<List<RoutePointDto>>(emptyList()) }
+    var routeSegments by remember { mutableStateOf<List<List<RoutePointDto>>>(listOf(emptyList())) }
     var dynamicDistanceMiles by remember { mutableStateOf(0.0)}
+    var ignoreNextDistance by remember { mutableStateOf(false) }
 
     LaunchedEffect(currentScreen) {
         when (currentScreen) {
@@ -202,8 +203,9 @@ fun CurreApp() {
             isPaused = false
             currentRunId = null
             currentScreen = AppScreen.ActiveRun
-            routePoints = emptyList()
+            routeSegments = listOf(emptyList())
             dynamicDistanceMiles = 0.0
+            ignoreNextDistance = false
         }
     }
 
@@ -307,25 +309,31 @@ fun CurreApp() {
                 val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 3000).build()
                 val locationCallback = object : LocationCallback(){
                     override fun onLocationResult(locationResult: LocationResult){
-                        for (location in locationResult.locations){
-                            val newPoint = RoutePointDto(
-                                latitude = location.latitude,
-                                longitude = location.longitude,
-                                timestampMillis = System.currentTimeMillis()
-                            )
-                            val updatedPoints = routePoints + newPoint
-                            routePoints = updatedPoints
-
-                            if (updatedPoints.size >= 2){
-                                val lastPoint = updatedPoints[updatedPoints.size - 2]
-                                val results = FloatArray(1)
-                                Location.distanceBetween(
-                                    lastPoint.latitude, lastPoint.longitude,
-                                    newPoint.latitude, newPoint.longitude,
-                                    results
+                        if (!isPaused){
+                            for (location in locationResult.locations){
+                                val newPoint = RoutePointDto(
+                                    latitude = location.latitude,
+                                    longitude = location.longitude,
+                                    timestampMillis = System.currentTimeMillis()
                                 )
-                                // Convert meters to miles and update state
-                                dynamicDistanceMiles += (results[0] / 1609.34)
+                                val currentSegments = routeSegments.toMutableList()
+                                val activeSegment = currentSegments.last().toMutableList()
+
+                                activeSegment.add(newPoint)
+                                currentSegments[currentSegments.lastIndex] = activeSegment
+                                routeSegments = currentSegments
+
+                                if (activeSegment.size >= 2){
+                                    val lastPoint = activeSegment[activeSegment.size - 2]
+                                    val results = FloatArray(1)
+                                    Location.distanceBetween(
+                                        lastPoint.latitude, lastPoint.longitude,
+                                        newPoint.latitude, newPoint.longitude,
+                                        results
+                                    )
+                                    // Convert meters to miles and update state
+                                    dynamicDistanceMiles += (results[0] / 1609.34)
+                                }
                             }
                         }
                     }
@@ -362,6 +370,7 @@ fun CurreApp() {
                         runSegmentStartTimeMillis = System.currentTimeMillis()
                         isPaused = false
                         pausedByEndDialog = false
+                        routeSegments = routeSegments + listOf(emptyList())
                     } else {
                         accumulatedElapsedMillis +=
                             (System.currentTimeMillis() - runSegmentStartTimeMillis)
@@ -382,6 +391,7 @@ fun CurreApp() {
                     val paceSeconds = (paceSecsPerMile % 60).toInt()
                     val formattedPace = String.format("%d:%02d", paceMinutes, paceSeconds)
                     val estimatedCalories = (distance * 100).toInt()
+                    val flatPoints = routeSegments.flatten()
                     val runToSave = RunDto(
                         startedAt = System.currentTimeMillis() - finalElapsedMillis,
                         endedAt = System.currentTimeMillis(),
@@ -389,7 +399,7 @@ fun CurreApp() {
                         durationSeconds = durationSecs,
                         avgPaceSecsPerMile = if (distance > 0) durationSecs / distance else 0.0,
                         calories = estimatedCalories,
-                        routePoints = routePoints
+                        routePoints = flatPoints
                     )
 
                     coroutineScope.launch {
@@ -427,7 +437,7 @@ fun CurreApp() {
                             durationText = formatSummaryDuration(finalElapsedMillis),
                             avgPaceText = formattedPace,
                             calories = estimatedCalories,
-                            routePoints = routePoints
+                            routeSegments = routeSegments
                         )
                     )
                 },
@@ -437,6 +447,7 @@ fun CurreApp() {
                             (System.currentTimeMillis() - runSegmentStartTimeMillis)
                         isPaused = true
                         pausedByEndDialog = true
+                        routeSegments = routeSegments + listOf(emptyList())
                     } else {
                         pausedByEndDialog = false
                     }
