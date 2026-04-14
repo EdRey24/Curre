@@ -54,7 +54,7 @@ fun EndRunScreen(
 ) {
     val context = LocalContext.current
     Configuration.getInstance().userAgentValue = context.packageName
-    val geoPoints = summary.routePoints.map { GeoPoint(it.latitude, it.longitude)}
+    val geoPoints = summary.routeSegments.flatten().map { GeoPoint(it.latitude, it.longitude)}
 
     // Full-screen page for the run completion summary.
     Surface(
@@ -82,9 +82,7 @@ fun EndRunScreen(
 
             if(geoPoints.isNotEmpty()){
                 Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
+                    modifier = Modifier.fillMaxWidth().weight(1f),
                     shape = RoundedCornerShape(24.dp),
                     colors = CardDefaults.cardColors(containerColor = CurreSurface),
                     elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
@@ -96,14 +94,19 @@ fun EndRunScreen(
                             MapView(ctx).apply {
                                 setMultiTouchControls(true)
 
-                                val routeLine = Polyline().apply {
-                                    setPoints(geoPoints)
-                                    outlinePaint.color = "#FF5722".toColorInt()
-                                    outlinePaint.strokeWidth = 15f
-                                    outlinePaint.strokeCap = android.graphics.Paint.Cap.ROUND
-                                    outlinePaint.strokeJoin = android.graphics.Paint.Join.ROUND
+                                summary.routeSegments.forEach { segment ->
+                                    if (segment.size >= 2){
+                                        val segmentGeoPoints = segment.map { GeoPoint(it.latitude, it.longitude)}
+                                        val routeLine = Polyline().apply {
+                                            setPoints(segmentGeoPoints)
+                                            outlinePaint.color = "#FF5722".toColorInt()
+                                            outlinePaint.strokeWidth = 15f
+                                            outlinePaint.strokeCap = android.graphics.Paint.Cap.ROUND
+                                            outlinePaint.strokeJoin = android.graphics.Paint.Join.ROUND
+                                        }
+                                        overlays.add(routeLine)
+                                    }
                                 }
-                                overlays.add(routeLine)
                                 val boundingBox = BoundingBox.fromGeoPoints(geoPoints)
 
                                 post {
