@@ -1,6 +1,8 @@
 package edu.bu.cs411.group10.curre.run;
 
 import jakarta.persistence.*;
+
+import jakarta.persistence.*;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 
 import java.util.List;
@@ -34,48 +36,35 @@ public class Run {
     @JsonManagedReference
     private List<RoutePoint> routePoints;
 
+    @Column(name = "user_id")
+    private Long userId;   // NEW
+
     public Run(){}
 
-    public Long getId(){
-        return id;
-    }
+    public Long getId(){ return id; }
+    public void setId(Long id){ this.id = id; }
 
-    public void setId(Long id){
-        this.id = id;
-    }
+    public Long getStartedAt(){ return startedAt; }
+    public void setStartedAt(Long startedAt){ this.startedAt = startedAt; }
 
-    public Long getStartedAt(){
-        return startedAt;
-    }
+    public Long getEndedAt(){ return endedAt; }
+    public void setEndedAt(Long endedAt){ this.endedAt = endedAt; }
 
-    public void setStartedAt(Long startedAt){
-        this.startedAt = startedAt;
-    }
+    public Double getDistanceMiles(){ return distanceMiles; }
+    public void setDistanceMiles(Double distanceMiles){ this.distanceMiles = distanceMiles; }
 
-    public Long getEndedAt(){
-        return endedAt;
-    }
+    public Integer getDurationSeconds(){ return durationSeconds; }
+    public void setDurationSeconds(Integer durationSeconds){ this.durationSeconds = durationSeconds; }
 
-    public void setEndedAt(Long endedAt){
-        this.endedAt = endedAt;
-    }
+    public Double getAvgPaceSecsPerMile(){ return avgPaceSecsPerMile; }
+    public void setAvgPaceSecsPerMile(Double avgPaceSecsPerMile){ this.avgPaceSecsPerMile = avgPaceSecsPerMile; }
 
-    public Double getDistanceMiles(){
-        return distanceMiles;
-    }
+    public Integer getCalories(){ return calories; }
+    public void setCalories(Integer calories){ this.calories = calories; }
 
-    public void setDistanceMiles(Double distanceMiles){
-        this.distanceMiles = distanceMiles;
-    }
-
-    public Integer getDurationSeconds(){
-        return durationSeconds;
-    }
-
-    public void setDurationSeconds(Integer durationSeconds){
-        this.durationSeconds = durationSeconds;
-    }
-
+    public Long getUserId() { return userId; }
+    public void setUserId(Long userId) { this.userId = userId; }
+} // END OF CLASS Run
     public Double getAvgPaceSecsPerMile(){
         return avgPaceSecsPerMile;
     }
