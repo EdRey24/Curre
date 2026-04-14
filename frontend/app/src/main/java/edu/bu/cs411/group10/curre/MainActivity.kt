@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -32,6 +33,18 @@ import androidx.compose.runtime.LaunchedEffect
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import edu.bu.cs411.group10.curre.network.StartSafetyRequest
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import edu.bu.cs411.group10.curre.ui.theme.CurreSurface
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import edu.bu.cs411.group10.curre.ui.theme.CurreLime
+import edu.bu.cs411.group10.curre.ui.theme.CurreNavy
+import edu.bu.cs411.group10.curre.ui.theme.CurreTextMuted
+import androidx.compose.ui.unit.dp
+import androidx.compose.material3.*
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -58,7 +71,6 @@ private sealed class AppScreen {
 
 @Composable
 fun CurreApp() {
-    // Tracks which screen is currently visible.
     var currentScreen by remember { mutableStateOf<AppScreen>(AppScreen.SignUp) }
 
     var registeredUsers by remember {
@@ -74,57 +86,85 @@ fun CurreApp() {
 
     val coroutineScope = rememberCoroutineScope()
 
-    // Stores the time when the current "running segment" began.
-    // This resets when the user resumes after pausing.
     var runSegmentStartTimeMillis by remember { mutableLongStateOf(0L) }
 
-    // Stores total elapsed time accumulated before the current running segment.
-    // Example:
-    // - User runs 10 sec -> pause
-    // - accumulatedElapsedMillis becomes 10000
-    // - on resume, timer continues from that value
     var accumulatedElapsedMillis by remember { mutableLongStateOf(0L) }
 
-    // Whether the run is currently paused.
     var isPaused by remember { mutableStateOf(false) }
 
-    // Placeholder recent run data for the home screen.
     var pastRuns by remember { mutableStateOf<List<PastRun>>(emptyList()) }
 
     var pausedByEndDialog by remember { mutableStateOf(false) }
 
     var safetyMode by remember { mutableStateOf(SafetyMode.MODE_A) }
 
-    var emergencyContacts by remember {
-        mutableStateOf(
-            listOf(
-                EmergencyContact(
-                    id = 1,
-                    name = "Jane Doe",
-                    email = "jane@example.com"
-                )
-            )
-        )
-    }
+    var currentRunId by remember { mutableStateOf<Long?>(null) }
+
+    var emergencyContacts by remember { mutableStateOf<List<EmergencyContact>>(emptyList()) }
+    var isLoadingContacts by remember { mutableStateOf(false) }
+    var showNoContactsError by remember { mutableStateOf(false) }
 
     LaunchedEffect(currentScreen) {
-        if (currentScreen is AppScreen.Home){
+        when (currentScreen) {
+            is AppScreen.Home, is AppScreen.Safety, is AppScreen.ActiveRun -> {
+                if (emergencyContacts.isEmpty() && !isLoadingContacts) {
+                    isLoadingContacts = true
+                    try {
+                        val response = RetrofitClient.contactApi.getContacts()
+                        if (response.isSuccessful) {
+                            val dtos = response.body() ?: emptyList()
+                            emergencyContacts = dtos.map { dto ->
+                                EmergencyContact(
+                                    id = dto.id ?: 0L,
+                                    name = dto.name,
+                                    email = dto.email,
+                                    phone = dto.phone
+                                )
+                            }
+                        }
+                    } catch (e: Exception) {
+                        // Handle error silently; validation will still block if empty
+                    } finally {
+                        isLoadingContacts = false
+                    }
+                }
+            }
+
+            else -> { /* not authenticated yet */
+            }
+        }
+        if (currentScreen is AppScreen.Home) {
             try {
                 val response = RetrofitClient.api.getRuns()
-                if (response.isSuccessful){
+                if (response.isSuccessful) {
                     val fetchedDtos = response.body() ?: emptyList()
                     pastRuns = fetchedDtos.map { dto ->
                         PastRun(
                             dto.id?.toInt() ?: 0,
                             dto.avgPaceSecsPerMile / 60,
                             dto.durationSeconds / 60,
-                            SimpleDateFormat("M/d/yy", Locale.getDefault()).format(Date(dto.startedAt))
+                            SimpleDateFormat(
+                                "M/d/yy",
+                                Locale.getDefault()
+                            ).format(Date(dto.startedAt))
                         )
                     }.reversed()
                 }
-            } catch (e: Exception){
+            } catch (e: Exception) {
                 println("NETWORK ERROR FETCHING RUNS: ${e.message}")
             }
+        }
+    }
+
+    fun attemptStartRun() {
+        if (emergencyContacts.isEmpty()) {
+            showNoContactsError = true
+        } else {
+            accumulatedElapsedMillis = 0L
+            runSegmentStartTimeMillis = System.currentTimeMillis()
+            isPaused = false
+            currentRunId = null
+            currentScreen = AppScreen.ActiveRun
         }
     }
 
@@ -172,13 +212,7 @@ fun CurreApp() {
                 weeklyMiles = 12.5,
                 streakDays = 20,
                 pastRuns = pastRuns,
-                onStartRun = {
-                    // Starting a brand-new run resets timing state.
-                    accumulatedElapsedMillis = 0L
-                    runSegmentStartTimeMillis = System.currentTimeMillis()
-                    isPaused = false
-                    currentScreen = AppScreen.ActiveRun
-                },
+                onStartRun = { attemptStartRun() },
                 onSafetyClick = {
                     currentScreen = AppScreen.Safety
                 },
@@ -199,51 +233,21 @@ fun CurreApp() {
 
         is AppScreen.Safety -> {
             SafetyScreen(
-                contacts = emergencyContacts,
                 selectedMode = safetyMode,
                 onModeChange = { safetyMode = it },
-                onAddContact = { name, email ->
-                    val nextId = (emergencyContacts.maxOfOrNull { it.id } ?: 0) + 1
-                    emergencyContacts = emergencyContacts + EmergencyContact(
-                        id = nextId,
-                        name = name,
-                        email = email
-                    )
+                onHomeClick = { currentScreen = AppScreen.Home },
+                onStartRunClick = { attemptStartRun() },
+                onRunsClick = { /* TODO */ },
+                onProfileClick = { /* TODO */ },
+                onContactsUpdated = { updatedContacts ->
+                    emergencyContacts = updatedContacts
                 },
-                onUpdateContact = { contactId, name, email ->
-                    emergencyContacts = emergencyContacts.map { contact ->
-                        if (contact.id == contactId) {
-                            contact.copy(name = name, email = email)
-                        } else {
-                            contact
-                        }
-                    }
-                },
-                onDeleteContact = { contactId ->
-                    emergencyContacts = emergencyContacts.filterNot { it.id == contactId }
-                },
-                onHomeClick = {
-                    currentScreen = AppScreen.Home
-                },
-                onStartRunClick = {
-                    accumulatedElapsedMillis = 0L
-                    runSegmentStartTimeMillis = System.currentTimeMillis()
-                    isPaused = false
-                    currentScreen = AppScreen.ActiveRun
-                },
-                onRunsClick = {
-                    // TODO
-                },
-                onProfileClick = {
-                    // TODO
-                }
+                contacts = emergencyContacts
             )
         }
 
 
         is AppScreen.ActiveRun -> {
-            // Updates once per second while the run screen is open.
-            // If paused, the displayed elapsed time stays frozen.
             val elapsedMillis by produceState(
                 initialValue = accumulatedElapsedMillis,
                 key1 = runSegmentStartTimeMillis,
@@ -268,35 +272,30 @@ fun CurreApp() {
                 isPaused = isPaused,
                 onPauseResumeClick = {
                     if (isPaused) {
-                        // Resume:
-                        // Start a new running segment now, while preserving previous elapsed time.
                         runSegmentStartTimeMillis = System.currentTimeMillis()
                         isPaused = false
                         pausedByEndDialog = false
                     } else {
-                        // Pause:
-                        // Save elapsed time up to this moment, then freeze.
                         accumulatedElapsedMillis +=
                             (System.currentTimeMillis() - runSegmentStartTimeMillis)
                         isPaused = true
                     }
                 },
                 onStopClick = {
-                    // Calculate the final elapsed time correctly depending on pause state.
                     val finalElapsedMillis = if (isPaused) {
                         accumulatedElapsedMillis
                     } else {
                         accumulatedElapsedMillis + (System.currentTimeMillis() - runSegmentStartTimeMillis)
                     }
 
-                    val distance = 0.15 // This is hardcoded for the demo
+                    val distance = 0.15
                     val durationSecs = (finalElapsedMillis / 1000).toInt()
                     val paceSecsPerMile = if (distance > 0) durationSecs / distance else 0.0
                     val paceMinutes = (paceSecsPerMile / 60).toInt()
                     val paceSeconds = (paceSecsPerMile % 60).toInt()
                     val formattedPace = String.format("%d:%02d", paceMinutes, paceSeconds)
                     val estimatedCalories = (distance * 100).toInt()
-                    val runtoSave = RunDto(
+                    val runToSave = RunDto(
                         startedAt = System.currentTimeMillis() - finalElapsedMillis,
                         endedAt = System.currentTimeMillis(),
                         distanceMiles = distance,
@@ -304,12 +303,30 @@ fun CurreApp() {
                         avgPaceSecsPerMile = if (distance > 0) durationSecs / distance else 0.0,
                         calories = estimatedCalories
                     )
+
                     coroutineScope.launch {
                         try {
-                            val response = RetrofitClient.api.saveRun(runtoSave)
-                            if (response.isSuccessful) println("SUCCESS! Saved run to backend with ID: ${response.body()?.id}")
-                            else println("SERVER ERROR: ${response.errorBody()?.string()}")
-                        } catch (e: Exception){
+                            val response = RetrofitClient.api.saveRun(runToSave)
+                            if (response.isSuccessful) {
+                                val savedRun = response.body()
+                                savedRun?.id?.let { runId ->
+                                    currentRunId = runId
+                                    if (safetyMode == SafetyMode.MODE_A || safetyMode == SafetyMode.MODE_B) {
+                                        try {
+                                            val interval = if (safetyMode == SafetyMode.MODE_B) 900 else 0
+                                            RetrofitClient.safetyApi.startSafety(
+                                                StartSafetyRequest(runId, interval)
+                                            )
+                                        } catch (e: Exception) {
+                                            println("Failed to start safety monitoring: ${e.message}")
+                                        }
+                                    }
+                                }
+                                println("SUCCESS! Saved run to backend with ID: ${response.body()?.id}")
+                            } else {
+                                println("SERVER ERROR: ${response.errorBody()?.string()}")
+                            }
+                        } catch (e: Exception) {
                             println("NETWORK ERROR: ${e.message}")
                         }
                     }
@@ -349,11 +366,58 @@ fun CurreApp() {
             EndRunScreen(
                 summary = screen.summary,
                 onDoneClick = {
-                    // Return home after acknowledging the summary.
+                    currentRunId?.let { runId ->
+                        coroutineScope.launch {
+                            try {
+                                RetrofitClient.safetyApi.stopSafety(runId)
+                            } catch (e: Exception) {
+                                println("Failed to stop safety monitoring: ${e.message}")
+                            }
+                        }
+                    }
                     currentScreen = AppScreen.Home
                 }
             )
         }
+    }
+
+    // No contacts alert dialog
+    if (showNoContactsError) {
+        AlertDialog(
+            onDismissRequest = { showNoContactsError = false },
+            containerColor = CurreSurface,
+            shape = RoundedCornerShape(24.dp),
+            title = {
+                Text(
+                    text = "Cannot Start Run",
+                    color = CurreNavy,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 20.sp
+                )
+            },
+            text = {
+                Text(
+                    text = "You have safety features enabled, but no emergency contacts are added. Please add at least one contact before starting a run.",
+                    color = CurreTextMuted,
+                    fontSize = 15.sp
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showNoContactsError = false
+                        currentScreen = AppScreen.Safety   // Take user to Safety screen to add contacts
+                    }
+                ) {
+                    Text("Go to Safety", color = CurreLime, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNoContactsError = false }) {
+                    Text("Cancel", color = CurreNavy)
+                }
+            }
+        )
     }
 }
 
