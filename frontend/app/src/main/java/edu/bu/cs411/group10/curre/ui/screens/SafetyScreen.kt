@@ -1,52 +1,17 @@
-package edu.bu.cs411.group10.curre.ui.screens // Interaction with screens
+package edu.bu.cs411.group10.curre.ui.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.NotificationsNone
-import androidx.compose.material.icons.outlined.PersonAddAlt1
-import androidx.compose.material.icons.outlined.PersonOutline
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,36 +19,31 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import edu.bu.cs411.group10.curre.network.RetrofitClient
 import edu.bu.cs411.group10.curre.ui.components.BottomNavTab
 import edu.bu.cs411.group10.curre.ui.components.CurreBottomBar
 import edu.bu.cs411.group10.curre.ui.model.EmergencyContact
-import edu.bu.cs411.group10.curre.ui.theme.CurreBackground
-import edu.bu.cs411.group10.curre.ui.theme.CurreLime
-import edu.bu.cs411.group10.curre.ui.theme.CurreLimeSoft
-import edu.bu.cs411.group10.curre.ui.theme.CurreNavy
-import edu.bu.cs411.group10.curre.ui.theme.CurreOrange
-import edu.bu.cs411.group10.curre.ui.theme.CurreSurface
-import edu.bu.cs411.group10.curre.ui.theme.CurreTextMuted
+import edu.bu.cs411.group10.curre.ui.model.EmergencyContactDto
+import edu.bu.cs411.group10.curre.ui.theme.*
+import kotlinx.coroutines.launch
 
 enum class SafetyMode {
     MODE_A,
     MODE_B
-} // END OF ENUM SafetyMode
+}
 
 @Composable
 fun SafetyScreen(
     contacts: List<EmergencyContact>,
-    isLoading: Boolean = false,
     selectedMode: SafetyMode,
     onModeChange: (SafetyMode) -> Unit,
-    onAddContact: (String, String) -> Unit,
-    onUpdateContact: (Long, String, String) -> Unit,   // changed from Int to Long
-    onDeleteContact: (Long) -> Unit,                   // changed from Int to Long
     onHomeClick: () -> Unit,
     onStartRunClick: () -> Unit,
     onRunsClick: () -> Unit,
-    onProfileClick: () -> Unit
+    onProfileClick: () -> Unit,
+    onContactsUpdated: (List<EmergencyContact>) -> Unit
 ) {
+    val scope = rememberCoroutineScope()
     var showAddDialog by remember { mutableStateOf(false) }
     var contactBeingEdited by remember { mutableStateOf<EmergencyContact?>(null) }
     var contactPendingDelete by remember { mutableStateOf<EmergencyContact?>(null) }
@@ -99,7 +59,7 @@ fun SafetyScreen(
                 onRunsClick = onRunsClick,
                 onProfileClick = onProfileClick
             )
-        } // END OF bottomBar
+        }
     ) { innerPadding ->
         Surface(
             modifier = Modifier.fillMaxSize(),
@@ -114,16 +74,6 @@ fun SafetyScreen(
                     .navigationBarsPadding()
             ) {
                 Spacer(modifier = Modifier.height(8.dp))
-
-                if (isLoading) {
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = CurreLime)
-                    } // END OF Box
-                    Spacer(modifier = Modifier.height(24.dp))
-                } // END OF IF-BLOCK
 
                 Text(
                     text = "Safety",
@@ -154,7 +104,7 @@ fun SafetyScreen(
 
                 SafetyModeCard(
                     title = "Mode B: Timed Check-In",
-                    subtitle = "Requires check-in every X minutes",
+                    subtitle = "Requires check-in every 15 minutes",
                     selected = selectedMode == SafetyMode.MODE_B,
                     onClick = { onModeChange(SafetyMode.MODE_B) }
                 )
@@ -191,22 +141,18 @@ fun SafetyScreen(
 
                 Spacer(modifier = Modifier.height(22.dp))
 
-                if (contacts.isEmpty() && !isLoading) {
+                if (contacts.isEmpty()) {
                     EmptyContactsCard()
-                } else if (!isLoading) {
+                } else {
                     contacts.forEach { contact ->
                         ContactCard(
                             contact = contact,
-                            onEditClick = {
-                                contactBeingEdited = contact
-                            },
-                            onDeleteClick = {
-                                contactPendingDelete = contact
-                            }
+                            onEditClick = { contactBeingEdited = contact },
+                            onDeleteClick = { contactPendingDelete = contact }
                         )
                         Spacer(modifier = Modifier.height(18.dp))
-                    } // END OF forEach
-                } // END OF IF-ELSE
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(18.dp))
 
@@ -227,9 +173,7 @@ fun SafetyScreen(
                         contentDescription = "Add contact",
                         modifier = Modifier.size(24.dp)
                     )
-
                     Spacer(modifier = Modifier.width(10.dp))
-
                     Text(
                         text = "Add Contact",
                         fontWeight = FontWeight.ExtraBold,
@@ -239,6 +183,7 @@ fun SafetyScreen(
 
                 Spacer(modifier = Modifier.height(18.dp))
 
+                // Test notification button (still disabled for now)
                 Button(
                     onClick = { },
                     enabled = false,
@@ -258,9 +203,7 @@ fun SafetyScreen(
                         contentDescription = "Send test notification",
                         modifier = Modifier.size(22.dp)
                     )
-
                     Spacer(modifier = Modifier.width(10.dp))
-
                     Text(
                         text = "Send Test Notification",
                         fontWeight = FontWeight.Bold,
@@ -269,38 +212,88 @@ fun SafetyScreen(
                 }
 
                 Spacer(modifier = Modifier.height(18.dp))
-            } // END OF Column
-        } // END OF Surface
-    } // END OF Scaffold
+            }
+        }
+    }
 
+    // Add contact dialog
     if (showAddDialog) {
         ContactEditorDialog(
             title = "Add New Contact",
             initialName = "",
             initialEmail = "",
+            initialPhone = "",
             confirmText = "Add",
             onDismiss = { showAddDialog = false },
-            onConfirm = { name, email ->
-                onAddContact(name, email)
-                showAddDialog = false
+            onConfirm = { name, email, phone ->
+                scope.launch {
+                    try {
+                        val dto = EmergencyContactDto(name = name, email = email, phone = phone)
+                        val response = RetrofitClient.contactApi.addContact(dto)
+                        if (response.isSuccessful) {
+                            val newContactDto = response.body()
+                            if (newContactDto != null) {
+                                val newContact = EmergencyContact(
+                                    id = newContactDto.id ?: 0L,
+                                    name = newContactDto.name,
+                                    email = newContactDto.email,
+                                    phone = newContactDto.phone
+                                )
+                                onContactsUpdated(contacts + newContact)
+                            }
+                            showAddDialog = false
+                        }
+                    } catch (e: Exception) {
+                        // Handle error silently for now
+                    }
+                }
             }
         )
-    } // END OF IF-BLOCK
+    }
 
+    // Edit contact dialog
     contactBeingEdited?.let { contact ->
         ContactEditorDialog(
             title = "Edit Contact",
             initialName = contact.name,
             initialEmail = contact.email,
+            initialPhone = contact.phone ?: "",
             confirmText = "Save",
             onDismiss = { contactBeingEdited = null },
-            onConfirm = { name, email ->
-                onUpdateContact(contact.id, name, email)
-                contactBeingEdited = null
+            onConfirm = { name, email, phone ->
+                scope.launch {
+                    try {
+                        val dto = EmergencyContactDto(
+                            id = contact.id,
+                            name = name,
+                            email = email,
+                            phone = phone
+                        )
+                        val response = RetrofitClient.contactApi.updateContact(contact.id, dto)
+                        if (response.isSuccessful) {
+                            val updatedDto = response.body()
+                            if (updatedDto != null) {
+                                val updatedContact = EmergencyContact(
+                                    id = updatedDto.id ?: contact.id,
+                                    name = updatedDto.name,
+                                    email = updatedDto.email,
+                                    phone = updatedDto.phone
+                                )
+                                onContactsUpdated(
+                                    contacts.map { if (it.id == contact.id) updatedContact else it }
+                                )
+                            }
+                            contactBeingEdited = null
+                        }
+                    } catch (e: Exception) {
+                        // Handle error silently
+                    }
+                }
             }
         )
-    } // END OF let
+    }
 
+    // Delete confirmation
     contactPendingDelete?.let { contact ->
         AlertDialog(
             onDismissRequest = { contactPendingDelete = null },
@@ -328,8 +321,17 @@ fun SafetyScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        onDeleteContact(contact.id)
-                        contactPendingDelete = null
+                        scope.launch {
+                            try {
+                                val response = RetrofitClient.contactApi.deleteContact(contact.id)
+                                if (response.isSuccessful) {
+                                    onContactsUpdated(contacts.filterNot { it.id == contact.id })
+                                    contactPendingDelete = null
+                                }
+                            } catch (e: Exception) {
+                                // Handle error silently
+                            }
+                        }
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = CurreOrange,
@@ -340,28 +342,22 @@ fun SafetyScreen(
                 }
             }
         )
-    } // END OF let
-} // END OF FUNCTION SafetyScreen
-
-private fun isValidEmail(email: String): Boolean {
-    val trimmed = email.trim()
-    return trimmed.contains("@") &&
-            trimmed.substringAfter("@").contains(".") &&
-            !trimmed.startsWith("@") &&
-            !trimmed.endsWith("@")
-} // END OF FUNCTION isValidEmail
+    }
+}
 
 @Composable
 private fun ContactEditorDialog(
     title: String,
     initialName: String,
     initialEmail: String,
+    initialPhone: String,
     confirmText: String,
     onDismiss: () -> Unit,
-    onConfirm: (String, String) -> Unit
+    onConfirm: (String, String, String) -> Unit
 ) {
     var name by remember { mutableStateOf(initialName) }
     var email by remember { mutableStateOf(initialEmail) }
+    var phone by remember { mutableStateOf(initialPhone) }
     val emailValid = isValidEmail(email)
 
     AlertDialog(
@@ -382,8 +378,7 @@ private fun ContactEditorDialog(
                     onValueChange = { name = it },
                     label = { Text("Name") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = TextFieldDefaults.colors()
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -394,19 +389,27 @@ private fun ContactEditorDialog(
                     label = { Text("Email") },
                     singleLine = true,
                     isError = email.isNotBlank() && !emailValid,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = TextFieldDefaults.colors()
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 if (email.isNotBlank() && !emailValid) {
-                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = "Enter a valid email address",
                         color = CurreOrange,
                         fontSize = 13.sp
                     )
-                } // END OF IF-BLOCK
-            } // END OF Column
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = phone,
+                    onValueChange = { phone = it },
+                    label = { Text("Phone (optional)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
@@ -415,9 +418,7 @@ private fun ContactEditorDialog(
         },
         confirmButton = {
             Button(
-                onClick = {
-                    onConfirm(name.trim(), email.trim())
-                },
+                onClick = { onConfirm(name.trim(), email.trim(), phone.trim()) },
                 enabled = name.isNotBlank() && emailValid,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = CurreLime,
@@ -430,7 +431,15 @@ private fun ContactEditorDialog(
             }
         }
     )
-} // END OF FUNCTION ContactEditorDialog
+}
+
+private fun isValidEmail(email: String): Boolean {
+    val trimmed = email.trim()
+    return trimmed.contains("@") &&
+            trimmed.substringAfter("@").contains(".") &&
+            !trimmed.startsWith("@") &&
+            !trimmed.endsWith("@")
+}
 
 @Composable
 private fun SafetyModeCard(
@@ -473,8 +482,8 @@ private fun SafetyModeCard(
                             .clip(CircleShape)
                             .background(Color.White)
                     )
-                } // END OF IF-BLOCK
-            } // END OF Box
+                }
+            }
 
             Spacer(modifier = Modifier.width(18.dp))
 
@@ -491,10 +500,10 @@ private fun SafetyModeCard(
                     color = subtitleColor,
                     fontSize = 14.sp
                 )
-            } // END OF Column
-        } // END OF Row
-    } // END OF Card
-} // END OF FUNCTION SafetyModeCard
+            }
+        }
+    }
+}
 
 @Composable
 private fun ContactCard(
@@ -527,7 +536,7 @@ private fun ContactCard(
                     tint = CurreTextMuted,
                     modifier = Modifier.size(34.dp)
                 )
-            } // END OF Box
+            }
 
             Spacer(modifier = Modifier.width(18.dp))
 
@@ -546,7 +555,7 @@ private fun ContactCard(
                     color = CurreTextMuted,
                     fontSize = 14.sp
                 )
-            } // END OF Column
+            }
 
             Box(
                 modifier = Modifier
@@ -561,8 +570,8 @@ private fun ContactCard(
                         contentDescription = "Edit contact",
                         tint = CurreOrange
                     )
-                } // END OF IconButton
-            } // END OF Box
+                }
+            }
 
             Spacer(modifier = Modifier.width(12.dp))
 
@@ -581,10 +590,10 @@ private fun ContactCard(
                     imageVector = Icons.Outlined.Delete,
                     contentDescription = "Delete contact"
                 )
-            } // END OF OutlinedButton
-        } // END OF Row
-    } // END OF Card
-} // END OF FUNCTION ContactCard
+            }
+        }
+    }
+}
 
 @Composable
 private fun EmptyContactsCard() {
@@ -614,6 +623,6 @@ private fun EmptyContactsCard() {
                 color = CurreTextMuted,
                 fontSize = 15.sp
             )
-        } // END OF Column
-    } // END OF Card
-} // END OF FUNCTION EmptyContactsCard
+        }
+    }
+}
