@@ -64,22 +64,6 @@ public class Run {
 
     public Long getUserId() { return userId; }
     public void setUserId(Long userId) { this.userId = userId; }
-} // END OF CLASS Run
-    public Double getAvgPaceSecsPerMile(){
-        return avgPaceSecsPerMile;
-    }
-
-    public void setAvgPaceSecsPerMile(Double avgPaceSecsPerMile){
-        this.avgPaceSecsPerMile = avgPaceSecsPerMile;
-    }
-
-    public Integer getCalories(){
-        return calories;
-    }
-
-    public void setCalories(Integer calories){
-        this.calories = calories;
-    }
 
     public List<RoutePoint> getRoutePoints() {return routePoints;}
 
