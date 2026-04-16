@@ -43,16 +43,18 @@ import edu.bu.cs411.group10.curre.ui.theme.CurreTextMuted
 
 @Composable
 fun LoginScreen(
-    onLogin: (String, String) -> Boolean,
+    onLogin: (String, String, (Boolean, String) -> Unit) -> Unit,
     onGoToSignUp: () -> Unit,
     onLoginSuccess: () -> Unit
 ) {
-    var username by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var errorMessage by remember { mutableStateOf("") }
+    var statusMessage by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+    var isError by remember { mutableStateOf(false) }
 
-    val usernameInteractionSource = remember { MutableInteractionSource() }
-    val usernameFocused by usernameInteractionSource.collectIsFocusedAsState()
+    val emailInteractionSource = remember { MutableInteractionSource() }
+    val emailFocused by emailInteractionSource.collectIsFocusedAsState()
 
     // Mainscreen container
     Surface(
@@ -80,10 +82,9 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(34.dp))
 
-            // card container for nputs
             AuthCard {
                 Text(
-                    text = "Username",
+                    text = "Email",
                     color = CurreNavy,
                     fontWeight = FontWeight.Bold
                 )
@@ -91,16 +92,16 @@ fun LoginScreen(
                 Spacer(modifier = Modifier.height(10.dp))
 
                 OutlinedTextField(
-                    value = username,
+                    value = email,
                     onValueChange = {
-                        username = it
-                        errorMessage = ""
+                        email = it
+                        statusMessage = ""
                     },
-                    placeholder = { Text("Enter your username") },
+                    placeholder = { Text("Enter your email") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
-                    interactionSource = usernameInteractionSource,
+                    interactionSource = emailInteractionSource,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = CurreLime,
                         unfocusedBorderColor = Color(0xFFD4D8DE),
@@ -123,33 +124,42 @@ fun LoginScreen(
                     value = password,
                     onValueChange = {
                         password = it
-                        errorMessage = ""
+                        statusMessage = ""
                     },
                     placeholder = "Password",
                     helperText = "Enter your password"
                 )
 
-                // error message
-                if (errorMessage.isNotBlank()) {
+                if (statusMessage.isNotBlank()) {
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
-                        text = errorMessage,
-                        color = Color(0xFFD9534F)
+                        text = statusMessage,
+                        color = if (isError) Color(0xFFD9534F) else Color(0xFF4CAF50)
                     )
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // login button
                 Button(
                     onClick = {
-                        val success = onLogin(username.trim(), password)
-                        if (success) {
-                            onLoginSuccess()  // go to homescreen
-                        } else {
-                            errorMessage = "Incorrect username or password"
+                        val trimmedEmail = email.trim()
+                        if (trimmedEmail.isBlank() || password.isBlank()) {
+                            statusMessage = "Email and password are required"
+                            isError = true
+                            return@Button
+                        }
+                        isLoading = true
+                        statusMessage = ""
+                        onLogin(trimmedEmail, password) { success, message ->
+                            isLoading = false
+                            statusMessage = message
+                            isError = !success
+                            if (success) {
+                                onLoginSuccess()
+                            }
                         }
                     },
+                    enabled = !isLoading,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(64.dp),
@@ -160,7 +170,7 @@ fun LoginScreen(
                     )
                 ) {
                     Text(
-                        text = "Log In",
+                        text = if (isLoading) "Logging In..." else "Log In",
                         fontWeight = FontWeight.ExtraBold
                     )
                 }

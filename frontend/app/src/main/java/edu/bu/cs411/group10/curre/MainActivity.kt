@@ -1,9 +1,12 @@
 package edu.bu.cs411.group10.curre
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.ui.platform.LocalContext
+import edu.bu.cs411.group10.curre.auth.AuthPrefs
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -72,7 +75,9 @@ private sealed class AppScreen {
 
 @Composable
 fun CurreApp() {
-    var currentScreen by remember { mutableStateOf<AppScreen>(AppScreen.SignUp) }
+    val context = LocalContext.current
+    val initialScreen = if (AuthPrefs.isLoggedIn(context)) AppScreen.Home else AppScreen.SignUp
+    var currentScreen by remember { mutableStateOf<AppScreen>(initialScreen) }
 
     var registeredUsers by remember {
         mutableStateOf(
@@ -172,10 +177,23 @@ fun CurreApp() {
     when (val screen = currentScreen) {
         is AppScreen.Login -> {
             LoginScreen(
-                onLogin = { username, password ->
-                    registeredUsers.any {
-                        it.username.equals(username, ignoreCase = true) &&
-                                it.password == password
+                onLogin = { email, password, onResult ->
+                    coroutineScope.launch {
+                        try {
+                            val response = RetrofitClient.authApi.login(
+                                AuthRequest(email, password)
+                            )
+                            if (response.isSuccessful && response.body()?.userId != null) {
+                                val body = response.body()!!
+                                AuthPrefs.saveLogin(context, body.userId!!, body.email ?: email)
+                                onResult(true, body.message)
+                            } else {
+                                val errorMsg = response.body()?.message ?: "Login failed"
+                                onResult(false, errorMsg)
+                            }
+                        } catch (e: Exception) {
+                            onResult(false, "Network error: ${e.message}")
+                        }
                     }
                 },
                 onGoToSignUp = {
@@ -196,7 +214,9 @@ fun CurreApp() {
                                 AuthRequest(email, password, confirmPassword)
                             )
                             if (response.isSuccessful && response.body()?.userId != null) {
-                                onResult(true, response.body()?.message ?: "Registration successful")
+                                val body = response.body()!!
+                                AuthPrefs.saveLogin(context, body.userId!!, body.email ?: email)
+                                onResult(true, body.message)
                             } else {
                                 val errorMsg = response.body()?.message ?: "Registration failed"
                                 onResult(false, errorMsg)
@@ -235,6 +255,7 @@ fun CurreApp() {
                     // TODO: Add run detail screen later.
                 },
                 onSignOut = {
+                    AuthPrefs.logout(context)
                     currentScreen = AppScreen.SignUp
                 }
             )
