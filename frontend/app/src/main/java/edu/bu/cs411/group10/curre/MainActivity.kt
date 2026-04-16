@@ -27,6 +27,7 @@ import edu.bu.cs411.group10.curre.ui.screens.SafetyScreen
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
+import edu.bu.cs411.group10.curre.network.AuthRequest
 import edu.bu.cs411.group10.curre.network.RetrofitClient
 import edu.bu.cs411.group10.curre.ui.model.RunDto
 import androidx.compose.runtime.LaunchedEffect
@@ -188,14 +189,22 @@ fun CurreApp() {
 
         is AppScreen.SignUp -> {
             SignUpScreen(
-                isUsernameTaken = { username ->
-                    registeredUsers.any { it.username.equals(username, ignoreCase = true) }
-                },
-                onCreateAccount = { username, password ->
-                    registeredUsers = registeredUsers + UserAccount(
-                        username = username,
-                        password = password
-                    )
+                onCreateAccount = { email, password, confirmPassword, onResult ->
+                    coroutineScope.launch {
+                        try {
+                            val response = RetrofitClient.authApi.register(
+                                AuthRequest(email, password, confirmPassword)
+                            )
+                            if (response.isSuccessful && response.body()?.userId != null) {
+                                onResult(true, response.body()?.message ?: "Registration successful")
+                            } else {
+                                val errorMsg = response.body()?.message ?: "Registration failed"
+                                onResult(false, errorMsg)
+                            }
+                        } catch (e: Exception) {
+                            onResult(false, "Network error: ${e.message}")
+                        }
+                    }
                 },
                 onGoToLogin = {
                     currentScreen = AppScreen.Login
