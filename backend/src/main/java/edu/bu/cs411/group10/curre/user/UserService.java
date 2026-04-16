@@ -1,5 +1,6 @@
 package edu.bu.cs411.group10.curre.user;
 
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import java.util.Optional;
 
@@ -7,6 +8,7 @@ import java.util.Optional;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public UserService(UserRepository userRepository) {
         this.userRepository = userRepository;
@@ -24,7 +26,7 @@ public class UserService {
 
         User user = new User();
         user.setEmail(dto.getEmail());
-        user.setPassword(dto.getPassword());
+        user.setPassword(passwordEncoder.encode(dto.getPassword()));
         User saved = userRepository.save(user);
 
         return new AuthResponse(saved.getId(), saved.getEmail(), "Registration successful");
@@ -37,7 +39,7 @@ public class UserService {
         }
 
         User user = existing.get();
-        if (!user.getPassword().equals(dto.getPassword())) {
+        if (!passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
             throw new IllegalArgumentException("Invalid password");
         }
 
