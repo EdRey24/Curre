@@ -13,6 +13,10 @@ public class UserService {
     }
 
     public AuthResponse register(UserDTO dto) {
+        if (dto.getConfirmPassword() == null || !dto.getPassword().equals(dto.getConfirmPassword())) {
+            throw new IllegalArgumentException("Passwords do not match");
+        }
+
         Optional<User> existing = userRepository.findByEmail(dto.getEmail());
         if (existing.isPresent()) {
             throw new IllegalArgumentException("Email already registered");
