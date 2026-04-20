@@ -124,11 +124,18 @@ public class SafetyService {
             if (now.isAfter(session.getLastCheckIn().plusSeconds(delaySeconds))) {
                 User user = getOrCreateUser(userId);
                 List<EmergencyContact> contacts = contactRepository.findByUserId(userId);
-                notificationService.sendOverdueAlert(user.getEmail(), contacts, null, null);
-                if (session != null) {
-                    session.setActive(false);
-                    sessionRepository.save(session);
+                Run run = runRepository.findById(runId).orElse(null);
+                Double lastLat = null;
+                Double lastLng = null;
+                if(run != null && run.getRoutePoints() != null && !run.getRoutePoints().isEmpty()) {
+                    var points = run.getRoutePoints();
+                    var lastPoint = points.getLast();
+                    lastLat = lastPoint.getLatitude();
+                    lastLng = lastPoint.getLongitude();
                 }
+                notificationService.sendOverdueAlert(user.getEmail(), contacts, lastLat, lastLng);
+                session.setActive(false);
+                sessionRepository.save(session);
                 cancelScheduledTask(runId);
                 log.warn("Overdue alert sent for run {} user {}", runId, userId); // DEBUG
             }
