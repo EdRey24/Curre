@@ -82,8 +82,7 @@ public class SafetyService {
         scheduleOverdueCheck(runId, userId, checkInIntervalSeconds);
 
         User user = getOrCreateUser(userId);
-        List<String> contactEmails = contacts.stream().map(EmergencyContact::getEmail).collect(Collectors.toList());
-        notificationService.sendRunStartedNotification(user.getEmail(), contactEmails, null, null);
+        notificationService.sendRunStartedNotification(user.getEmail(), contacts, null, null);
         log.info("Started safety monitoring for run {} user {}", runId, userId); // DEBUG
     } // END OF METHOD startSafetyMonitoring
 
@@ -112,8 +111,7 @@ public class SafetyService {
 
             User user = getOrCreateUser(userId);
             List<EmergencyContact> contacts = contactRepository.findByUserId(userId);
-            List<String> contactEmails = contacts.stream().map(EmergencyContact::getEmail).collect(Collectors.toList());
-            notificationService.sendRunEndedNotification(user.getEmail(), contactEmails);
+            notificationService.sendRunEndedNotification(user.getEmail(), contacts);
             log.info("Stopped safety monitoring for run {} user {}", runId, userId); // DEBUG
         }
     } // END OF METHOD stopSafetyMonitoring
@@ -126,8 +124,7 @@ public class SafetyService {
             if (now.isAfter(session.getLastCheckIn().plusSeconds(delaySeconds))) {
                 User user = getOrCreateUser(userId);
                 List<EmergencyContact> contacts = contactRepository.findByUserId(userId);
-                List<String> contactEmails = contacts.stream().map(EmergencyContact::getEmail).collect(Collectors.toList());
-                notificationService.sendOverdueAlert(user.getEmail(), contactEmails, null, null);
+                notificationService.sendOverdueAlert(user.getEmail(), contacts, null, null);
                 if (session != null) {
                     session.setActive(false);
                     sessionRepository.save(session);
