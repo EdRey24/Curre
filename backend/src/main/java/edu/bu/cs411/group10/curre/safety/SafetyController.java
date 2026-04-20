@@ -1,8 +1,10 @@
 package edu.bu.cs411.group10.curre.safety;
 
+import edu.bu.cs411.group10.curre.user.User;
+import edu.bu.cs411.group10.curre.user.UserRepository;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.Map;
 
 @RestController
@@ -11,9 +13,13 @@ import java.util.Map;
 public class SafetyController {
 
     private final SafetyService safetyService;
+    private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
-    public SafetyController(SafetyService safetyService) {
+    public SafetyController(SafetyService safetyService, UserRepository userRepository, NotificationService notificationService) {
         this.safetyService = safetyService;
+        this.userRepository = userRepository;
+        this.notificationService = notificationService;
     }
 
     @PostMapping("/start")
@@ -39,4 +45,12 @@ public class SafetyController {
         safetyService.stopSafetyMonitoring(runId, userId);
         return ResponseEntity.ok().build();
     } // END OF METHOD stopSafety
+
+    @PostMapping("/test-notification")
+    public ResponseEntity<Void> sendTestNotification(@RequestHeader("X-User-Id") Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+        notificationService.sendTestNotification(user.getEmail(), null);
+        return ResponseEntity.ok().build();
+    }
 } // END OF CLASS SafetyController
