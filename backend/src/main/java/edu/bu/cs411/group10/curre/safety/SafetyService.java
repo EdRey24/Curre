@@ -90,18 +90,19 @@ public class SafetyService {
     } // END OF METHOD startSafetyMonitoring
 
     @Transactional
-    public void checkIn(Long runId, Long userId) {
-        SafetySession session = sessionRepository.findByRunIdAndActiveTrue(runId)
-                .orElseThrow(() -> new EntityNotFoundException("No active safety session for run " + runId));
-        if (!session.getUserId().equals(userId)) {
-            throw new SecurityException("Run does not belong to this user");
+    public void checkIn(Long runId, Long userId, Double lat, Double lng) {
+        SafetySession session = sessionRepository.findByRunIdAndActiveTrue(runId).orElse(null);
+        if (session != null) {
+            session.setLastCheckIn(Instant.now());
+            if(lat != null && lng != null){
+                session.setLastLat(lat);
+                session.setLastLng(lng);
+            }
+            sessionRepository.save(session);
+            cancelScheduledTask(runId);
+            scheduleOverdueCheck(runId, userId, session.getCheckInIntervalSeconds());
+            log.info("User {} checked in for run {}. Emergency timer successfully reset!", userId, runId);
         }
-        session.setLastCheckIn(Instant.now());
-        sessionRepository.save(session);
-
-        cancelScheduledTask(runId);
-        scheduleOverdueCheck(runId, userId, session.getCheckInIntervalSeconds());
-        log.info("Check‑in received for run {} user {}", runId, userId); // DEBUG
     } // END OF METHOD checkIn
 
     @Transactional
