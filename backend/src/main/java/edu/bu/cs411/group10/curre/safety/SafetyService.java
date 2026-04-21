@@ -56,7 +56,7 @@ public class SafetyService {
     } // END OF METHOD getOrCreateUser
 
     @Transactional
-    public void startSafetyMonitoring(Long runId, Long userId, Integer checkInIntervalSeconds) {
+    public void startSafetyMonitoring(Long runId, Long userId, Integer checkInIntervalSeconds, Double lat, Double lng) {
         Run run = runRepository.findById(runId)
                 .orElseThrow(() -> new EntityNotFoundException("Run not found with id: " + runId));
 
@@ -76,13 +76,16 @@ public class SafetyService {
         session.setUserId(userId);
         session.setCheckInIntervalSeconds(checkInIntervalSeconds);
         session.setLastCheckIn(Instant.now());
+        session.setLastLat(lat);
+        session.setLastLng(lng);
+        session.setAlertCount(0);
         session.setActive(true);
         sessionRepository.save(session);
 
         scheduleOverdueCheck(runId, userId, checkInIntervalSeconds);
 
         User user = getOrCreateUser(userId);
-        notificationService.sendRunStartedNotification(user.getEmail(), contacts, null, null);
+        notificationService.sendRunStartedNotification(user.getEmail(), contacts, lat, lng);
         log.info("Started safety monitoring for run {} user {}", runId, userId); // DEBUG
     } // END OF METHOD startSafetyMonitoring
 
