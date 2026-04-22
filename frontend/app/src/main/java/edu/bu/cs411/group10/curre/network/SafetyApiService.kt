@@ -10,7 +10,7 @@ data class StartSafetyRequest(
 
 interface SafetyApiService {
     @POST("/api/safety/start")
-    suspend fun startSafety(@Body request: StartSafetyRequest): Response<Unit>
+    suspend fun startSafety(@Body payload: Map<String, @JvmSuppressWildcards Any?>): Response<Unit>
 
     @POST("/api/safety/checkin/{runId}")
     suspend fun checkIn(@Path("runId") runId: Long): Response<Unit>
