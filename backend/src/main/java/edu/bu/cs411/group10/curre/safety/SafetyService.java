@@ -107,11 +107,11 @@ public class SafetyService {
     @Transactional
     public void stopSafetyMonitoring(Long runId, Long userId) {
         SafetySession session = sessionRepository.findByRunIdAndActiveTrue(runId).orElse(null);
-        if (session != null) {
-            session.setActive(false);
-            sessionRepository.save(session);
+        if (session == null) {
+            return;
         }
-
+        session.setActive(false);
+        sessionRepository.save(session);
         cancelScheduledTask(runId);
 
         User user = getOrCreateUser(userId);
