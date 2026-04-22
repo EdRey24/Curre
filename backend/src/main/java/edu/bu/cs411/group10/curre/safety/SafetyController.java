@@ -33,8 +33,12 @@ public class SafetyController {
                                             @RequestBody Map<String, Object> payload) {
         Long runId = Long.valueOf(payload.get("runId").toString());
         Integer intervalSeconds = payload.containsKey("intervalSeconds") ?
-                Integer.valueOf(payload.get("intervalSeconds").toString()) : 900; // default 15 min
-        safetyService.startSafetyMonitoring(runId, userId, intervalSeconds);
+                Integer.parseInt(payload.get("intervalSeconds").toString()) : 900; // default 15 min
+        Double lat = payload.containsKey("lat") && payload.get("lat") != null ?
+                Double.valueOf(payload.get("lat").toString()) : null;
+        Double lng = payload.containsKey("lng") && payload.get("lng") != null ?
+                Double.valueOf(payload.get("lng").toString()) : null;
+        safetyService.startSafetyMonitoring(runId, userId, intervalSeconds, lat, lng);
         return ResponseEntity.ok().build();
     } // END OF METHOD startSafety
 
