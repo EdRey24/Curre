@@ -57,6 +57,13 @@ fun ActiveRunScreen(
     calories: Int,
     avgPace: Double,
     isPaused: Boolean,
+    safetyMode: String,
+    activeRunId: Long?,
+    checkInTimerString: String,
+    isCheckInOverdue: Boolean,
+    maxAlertsReached: Boolean,
+    gpsStatusText: String,
+    onCheckInClick: () -> Unit,
     onPauseResumeClick: () -> Unit,
     onStopClick: () -> Unit,
     onPauseForEndDialog: () -> Unit,
@@ -64,6 +71,7 @@ fun ActiveRunScreen(
 ) {
     // Controls whether the "End Run" confirmation dialog is visible.
     var showEndRunDialog by remember { mutableStateOf(false) }
+    var isCheckingIn by remember { mutableStateOf(false) }
 
     // Full-screen surface for the active run page.
     Surface(
