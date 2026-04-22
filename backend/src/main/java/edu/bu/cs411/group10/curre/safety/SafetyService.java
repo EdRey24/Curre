@@ -148,6 +148,37 @@ public class SafetyService {
         ScheduledFuture<?> future = scheduler.schedule(overdueTask, delaySeconds, TimeUnit.SECONDS);
         scheduledTasks.put(runId, future);
     } // END OF METHOD scheduleOverdueCheck
+            try {
+                processOverdueAlert(runId, userId);
+            } catch (Exception e) {
+                log.error("CRITICAL ERROR inside overdue task for run {}", runId, e);
+            }
+        };
+        ScheduledFuture<?> future = scheduler.schedule(overdueTask, delaySeconds, TimeUnit.SECONDS);
+        scheduledTasks.put(runId, future);
+    } // END OF METHOD scheduleOverdueCheck
+
+    @Transactional
+    public void processOverdueAlert(Long runId, Long userId) {
+        SafetySession session = sessionRepository.findByRunIdAndActiveTrue(runId).orElse(null);
+        if(session == null || !session.isActive()) return;
+
+        if (session.getAlertCount() != null && session.getAlertCount() >= 3) {
+            log.info("Max overdue alerts (3) reached for run {}. Skipping further alerts.", runId);
+            return;
+        }
+
+        User user = getOrCreateUser(userId);
+        List<EmergencyContact> contacts = contactRepository.findByUserId(userId);
+        Double lastLat = session.getLastLat();
+        Double lastLng = session.getLastLng();
+        notificationService.sendOverdueAlert(user.getEmail(), contacts, lastLat, lastLng);
+        int newCount = (session.getAlertCount() == null ? 0 : session.getAlertCount()) + 1;
+        session.setAlertCount(newCount);
+        sessionRepository.save(session);
+        cancelScheduledTask(runId);
+        log.warn("Overdue alert sent for run {} user {}", runId, userId);
+    }
 
     private void cancelScheduledTask(Long runId) {
         ScheduledFuture<?> future = scheduledTasks.remove(runId);
