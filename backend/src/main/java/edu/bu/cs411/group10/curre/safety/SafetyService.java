@@ -123,31 +123,6 @@ public class SafetyService {
 
     private void scheduleOverdueCheck(Long runId, Long userId, int delaySeconds) {
         Runnable overdueTask = () -> {
-            SafetySession session = sessionRepository.findByRunIdAndActiveTrue(runId).orElse(null);
-            if (session == null || !session.isActive()) return;
-            Instant now = Instant.now();
-            if (now.isAfter(session.getLastCheckIn().plusSeconds(delaySeconds))) {
-                User user = getOrCreateUser(userId);
-                List<EmergencyContact> contacts = contactRepository.findByUserId(userId);
-                Run run = runRepository.findById(runId).orElse(null);
-                Double lastLat = null;
-                Double lastLng = null;
-                if(run != null && run.getRoutePoints() != null && !run.getRoutePoints().isEmpty()) {
-                    var points = run.getRoutePoints();
-                    var lastPoint = points.getLast();
-                    lastLat = lastPoint.getLatitude();
-                    lastLng = lastPoint.getLongitude();
-                }
-                notificationService.sendOverdueAlert(user.getEmail(), contacts, lastLat, lastLng);
-                session.setActive(false);
-                sessionRepository.save(session);
-                cancelScheduledTask(runId);
-                log.warn("Overdue alert sent for run {} user {}", runId, userId); // DEBUG
-            }
-        };
-        ScheduledFuture<?> future = scheduler.schedule(overdueTask, delaySeconds, TimeUnit.SECONDS);
-        scheduledTasks.put(runId, future);
-    } // END OF METHOD scheduleOverdueCheck
             try {
                 processOverdueAlert(runId, userId);
             } catch (Exception e) {
@@ -178,6 +153,17 @@ public class SafetyService {
         sessionRepository.save(session);
         cancelScheduledTask(runId);
         log.warn("Overdue alert sent for run {} user {}", runId, userId);
+    }
+
+    public void pauseSafetyMonitoring(Long runId, Long userId) {
+        cancelScheduledTask(runId);
+        log.info("Safety monitoring PAUSED for run {}", runId);
+    }
+
+    public void resumeSafetyMonitoring(Long runId, Long userId, Integer remainingSeconds) {
+        cancelScheduledTask(runId);
+        scheduleOverdueCheck(runId, userId, remainingSeconds);
+        log.info("Safety monitoring RESUMED for run {} with {} seconds remaining", runId, remainingSeconds);
     }
 
     private void cancelScheduledTask(Long runId) {
