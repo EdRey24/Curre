@@ -553,14 +553,13 @@ fun CurreApp() {
                             } else {
                                 println("SERVER ERROR: ${response.errorBody()?.string()}")
                             }
-
-                            currentRunId?.let { runId ->
-                                coroutineScope.launch {
-                                    try {
-                                        RetrofitClient.safetyApi.stopSafety(runId)
-                                    } catch (e: Exception) {
-                                        println("Failed to stop safety monitoring: ${e.message}")
-                                    }
+                            if (safetyMode == SafetyMode.MODE_A || safetyMode == SafetyMode.MODE_B){
+                                currentRunId?.let { runId ->
+                                        try {
+                                            RetrofitClient.safetyApi.stopSafety(runId)
+                                        } catch (e: Exception) {
+                                            println("Failed to stop safety monitoring: ${e.message}")
+                                        }
                                 }
                             }
                         } catch (e: Exception) {
