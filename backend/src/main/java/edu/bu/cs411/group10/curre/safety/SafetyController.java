@@ -56,6 +56,22 @@ public class SafetyController {
         return ResponseEntity.ok().build();
     } // END OF METHOD checkIn
 
+    @PostMapping("/pause/{runId}")
+    public ResponseEntity<Void> pauseSafety(@PathVariable Long runId,
+                                            @RequestHeader("X-User-Id") Long userId) {
+        safetyService.pauseSafetyMonitoring(runId, userId);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/resume/{runId}")
+    public ResponseEntity<Void> pauseSafety(@PathVariable Long runId,
+                                            @RequestHeader("X-User-Id") Long userId,
+                                            @RequestBody Map<String, Object> payload) {
+        Integer remaining = Integer.valueOf(payload.get("remainingSeconds").toString());
+        safetyService.resumeSafetyMonitoring(runId, userId, remaining);
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping("/stop/{runId}")
     public ResponseEntity<Void> stopSafety(@PathVariable Long runId,
                                            @RequestHeader("X-User-Id") Long userId) {
