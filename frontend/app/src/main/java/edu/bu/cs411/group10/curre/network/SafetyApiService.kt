@@ -26,4 +26,7 @@ interface SafetyApiService {
 
     @POST("/api/safety/stop/{runId}")
     suspend fun stopSafety(@Path("runId") runId: Long): Response<Unit>
+
+    @POST("/api/safety/test-notification")
+    suspend fun sendTestNotification(): Response<Unit>
 }
