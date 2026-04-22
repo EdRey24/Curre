@@ -63,6 +63,16 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import kotlin.collections.emptyList
 
+/**
+ * Tracks where RunDetails was opened from
+ * → Fixes back navigation bug
+ */
+private enum class RunDetailsSource {
+    HOME,
+    RUNS
+}
+
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -84,7 +94,10 @@ private sealed class AppScreen {
     data object Safety : AppScreen()
     data object Runs : AppScreen()
     data object ActiveRun : AppScreen()
-    data class RunDetails(val runId: Long) : AppScreen()
+    data class RunDetails(
+        val runId: Long,
+        val source: RunDetailsSource
+    ) : AppScreen()
     data class EndRun(val summary: RunSummary) : AppScreen()
 }
 
@@ -274,7 +287,10 @@ fun CurreApp() {
                     // TODO: Add profile screen navigation later.
                 },
                 onRecentRunClick = { run ->
-                    currentScreen = AppScreen.RunDetails(run.id.toLong())
+                    currentScreen = AppScreen.RunDetails(
+                        runId = run.id.toLong(),
+                        source = RunDetailsSource.HOME
+                    )
                 },
                 onSignOut = {
                     currentScreen = AppScreen.SignUp
@@ -481,7 +497,10 @@ fun CurreApp() {
                 onRunsClick = { currentScreen = AppScreen.Runs },
                 onProfileClick = { /* TODO */ },
                 onRunClick = { runId ->
-                    currentScreen = AppScreen.RunDetails(runId)
+                    currentScreen = AppScreen.RunDetails(
+                        runId = runId,
+                        source = RunDetailsSource.RUNS
+                    )
                 }
             )
         }
@@ -492,7 +511,12 @@ fun CurreApp() {
             if (selectedRun != null) {
                 RunDetailsScreen(
                     run = selectedRun,
-                    onBackClick = { currentScreen = AppScreen.Runs }
+                    onBackClick = {
+                        currentScreen = when (screen.source) {
+                            RunDetailsSource.HOME -> AppScreen.Home
+                            RunDetailsSource.RUNS -> AppScreen.Runs
+                        }
+                    }
                 )
             } else {
                 currentScreen = AppScreen.Runs
