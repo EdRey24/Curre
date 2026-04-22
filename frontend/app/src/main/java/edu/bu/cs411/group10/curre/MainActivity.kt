@@ -361,11 +361,41 @@ fun CurreApp() {
                 }
             }
 
+            var checkInRemainingSeconds by remember { mutableIntStateOf(checkInIntervalSeconds) }
+            LaunchedEffect(checkInSegmentStartTime, checkInAccumulatedMillis, isPaused, isCheckInOverdue, alertsTriggered) {
+                while (alertsTriggered < 3) {
+                    if (isPaused || isCheckInOverdue) {
+                        delay(1000)
+                        continue
+                    }
+                    val elapsedMillis = checkInAccumulatedMillis + (System.currentTimeMillis() - checkInSegmentStartTime)
+                    val remaining = checkInIntervalSeconds - (elapsedMillis / 1000).toInt()
+                    if (remaining <= 0){
+                        alertsTriggered++
+                        isCheckInOverdue = true
+                        checkInRemainingSeconds = 0
+                    } else {
+                        checkInRemainingSeconds = remaining
+                    }
+                    delay(1000)
+                }
+            }
+            val checkInTimerString = String.format("%02d:%02d", checkInRemainingSeconds / 60, checkInRemainingSeconds % 60)
+
+            val gpsSecondsAgo by produceState(initialValue = 0L, key1 = lastGpsUpdateTimeMillis) {
+                while (true) {
+                    value = (System.currentTimeMillis() - lastGpsUpdateTimeMillis) / 1000
+                    delay(1000)
+                }
+            }
+            val gpsStatusText = if (isPaused) "Run paused" else "GPS updated ${gpsSecondsAgo}s ago"
+
             DisposableEffect(Unit) {
                 val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 3000).build()
                 val locationCallback = object : LocationCallback(){
                     override fun onLocationResult(locationResult: LocationResult){
                         if (!isPaused){
+                            lastGpsUpdateTimeMillis = System.currentTimeMillis()
                             for (location in locationResult.locations){
                                 val newPoint = RoutePointDto(
                                     latitude = location.latitude,
