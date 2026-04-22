@@ -108,16 +108,17 @@ public class SafetyService {
     @Transactional
     public void stopSafetyMonitoring(Long runId, Long userId) {
         SafetySession session = sessionRepository.findByRunIdAndActiveTrue(runId).orElse(null);
-        if (session != null && session.getUserId().equals(userId)) {
+        if (session != null) {
             session.setActive(false);
             sessionRepository.save(session);
-            cancelScheduledTask(runId);
-
-            User user = getOrCreateUser(userId);
-            List<EmergencyContact> contacts = contactRepository.findByUserId(userId);
-            notificationService.sendRunEndedNotification(user.getEmail(), contacts);
-            log.info("Stopped safety monitoring for run {} user {}", runId, userId); // DEBUG
         }
+
+        cancelScheduledTask(runId);
+
+        User user = getOrCreateUser(userId);
+        List<EmergencyContact> contacts = contactRepository.findByUserId(userId);
+        notificationService.sendRunEndedNotification(user.getEmail(), contacts);
+        log.info("Stopped safety monitoring for run {} user {}", runId, userId); // DEBUG
     } // END OF METHOD stopSafetyMonitoring
 
     private void scheduleOverdueCheck(Long runId, Long userId, int delaySeconds) {
