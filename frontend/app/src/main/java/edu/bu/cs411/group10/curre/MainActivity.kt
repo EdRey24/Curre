@@ -46,6 +46,7 @@ import androidx.compose.runtime.LaunchedEffect
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.Calendar
 import edu.bu.cs411.group10.curre.network.StartSafetyRequest
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
@@ -255,13 +256,12 @@ fun CurreApp() {
         }
 
         is AppScreen.Home -> {
+            val weeklyMilesValue = String.format("%.2f", fetchedRuns.sumOf { it.distanceMiles }).toDouble()
+            val streakDaysValue = calculateConsecutiveStreakDays(fetchedRuns)
             HomeScreen(
                 emergencyContactsCount = emergencyContacts.size,
-                weeklyMiles = fetchedRuns.sumOf { it.distanceMiles },
-                streakDays = fetchedRuns
-                    .map { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(it.startedAt)) }
-                    .distinct()
-                    .size,
+                weeklyMiles = weeklyMilesValue,
+                streakDays = streakDaysValue,
                 pastRuns = pastRuns,
                 onStartRun = { attemptStartRun() },
                 onSafetyClick = {
@@ -580,4 +580,33 @@ private fun formatSummaryDuration(elapsedMillis: Long): String {
     val seconds = totalSeconds % 60
 
     return String.format("%dm %02ds", minutes, seconds)
+}
+
+
+private fun calculateConsecutiveStreakDays(runs: List<RunDto>): Int {
+    if (runs.isEmpty()) return 0
+
+    val dateFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+
+    // Unique run dates only
+    val uniqueRunDates = runs
+        .map { dateFormatter.format(Date(it.startedAt)) }
+        .toSet()
+
+    val calendar = Calendar.getInstance()
+    var streak = 0
+
+    // Count backwards from today until a missing day breaks the streak
+    while (true) {
+        val currentDate = dateFormatter.format(calendar.time)
+
+        if (uniqueRunDates.contains(currentDate)) {
+            streak++
+            calendar.add(Calendar.DAY_OF_YEAR, -1)
+        } else {
+            break
+        }
+    }
+
+    return streak
 }
