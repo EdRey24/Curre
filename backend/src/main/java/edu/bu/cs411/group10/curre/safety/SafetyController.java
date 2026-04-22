@@ -1,10 +1,14 @@
 package edu.bu.cs411.group10.curre.safety;
 
+import edu.bu.cs411.group10.curre.contact.EmergencyContact;
+import edu.bu.cs411.group10.curre.contact.EmergencyContactRepository;
 import edu.bu.cs411.group10.curre.user.User;
 import edu.bu.cs411.group10.curre.user.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -15,11 +19,13 @@ public class SafetyController {
     private final SafetyService safetyService;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final EmergencyContactRepository contactRepository;
 
-    public SafetyController(SafetyService safetyService, UserRepository userRepository, NotificationService notificationService) {
+    public SafetyController(SafetyService safetyService, UserRepository userRepository, NotificationService notificationService, EmergencyContactRepository contactRepository) {
         this.safetyService = safetyService;
         this.userRepository = userRepository;
         this.notificationService = notificationService;
+        this.contactRepository = contactRepository;
     }
 
     @PostMapping("/start")
