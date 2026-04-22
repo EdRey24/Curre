@@ -84,6 +84,7 @@ public class SafetyController {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
         notificationService.sendTestNotification(user.getEmail(), null);
+        List<EmergencyContact> contacts = contactRepository.findByUserId(userId);
         return ResponseEntity.ok().build();
     }
 } // END OF CLASS SafetyController
