@@ -44,8 +44,15 @@ public class SafetyController {
 
     @PostMapping("/checkin/{runId}")
     public ResponseEntity<Void> checkIn(@PathVariable Long runId,
-                                        @RequestHeader("X-User-Id") Long userId) {
-        safetyService.checkIn(runId, userId);
+                                        @RequestHeader("X-User-Id") Long userId,
+                                        @RequestBody(required = false) Map<String, Object> payload) {
+        Double lat = null;
+        Double lng = null;
+        if (payload != null) {
+            lat = payload.containsKey("lat") && payload.get("lat") != null ? Double.valueOf(payload.get("lat").toString()) : null;
+            lng = payload.containsKey("lng") && payload.get("lng") != null ? Double.valueOf(payload.get("lng").toString()) : null;
+        }
+        safetyService.checkIn(runId, userId, lat, lng);
         return ResponseEntity.ok().build();
     } // END OF METHOD checkIn
 
