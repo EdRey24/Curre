@@ -13,7 +13,6 @@ interface SafetyApiService {
     suspend fun startSafety(@Body payload: Map<String, @JvmSuppressWildcards Any?>): Response<Unit>
 
     @POST("/api/safety/checkin/{runId}")
-    suspend fun checkIn(@Path("runId") runId: Long): Response<Unit>
     suspend fun checkIn(@Path("runId") runId: Long, @Body payload: Map<String, @JvmSuppressWildcards Any?>): Response<Unit>
 
     @POST("/api/safety/pause/{runId}")
