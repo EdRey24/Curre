@@ -122,7 +122,7 @@ fun RunsScreen(
                 .background(CurreBackground)
                 .padding(innerPadding)
                 .padding(horizontal = 20.dp),
-            contentPadding = PaddingValues(top = 24.dp, bottom = 24.dp),
+            contentPadding = PaddingValues(top = 40.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             // Page title
@@ -133,6 +133,8 @@ fun RunsScreen(
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 28.sp
                 )
+
+                Spacer(modifier = Modifier.height(16.dp))
             }
 
             // Summary cards

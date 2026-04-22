@@ -291,9 +291,6 @@ fun CurreApp() {
                         runId = run.id.toLong(),
                         source = RunDetailsSource.HOME
                     )
-                },
-                onSignOut = {
-                    currentScreen = AppScreen.SignUp
                 }
             )
         }
