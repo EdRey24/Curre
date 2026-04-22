@@ -54,6 +54,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        RetrofitClient.init(this)
 
         setContent {
             CurreTheme {
@@ -188,7 +189,16 @@ fun CurreApp() {
                                 AuthPrefs.saveLogin(context, body.userId!!, body.email ?: email)
                                 onResult(true, body.message)
                             } else {
-                                val errorMsg = response.body()?.message ?: "Login failed"
+                                val errorMsg = try {
+                                    val errorJson = response.errorBody()?.string()
+                                    val parsed = com.google.gson.Gson().fromJson(
+                                        errorJson,
+                                        edu.bu.cs411.group10.curre.network.AuthResponse::class.java
+                                    )
+                                    parsed?.message ?: "Login failed"
+                                } catch (e: Exception) {
+                                    "Login failed"
+                                }
                                 onResult(false, errorMsg)
                             }
                         } catch (e: Exception) {
@@ -218,7 +228,16 @@ fun CurreApp() {
                                 AuthPrefs.saveLogin(context, body.userId!!, body.email ?: email)
                                 onResult(true, body.message)
                             } else {
-                                val errorMsg = response.body()?.message ?: "Registration failed"
+                                val errorMsg = try {
+                                    val errorJson = response.errorBody()?.string()
+                                    val parsed = com.google.gson.Gson().fromJson(
+                                        errorJson,
+                                        edu.bu.cs411.group10.curre.network.AuthResponse::class.java
+                                    )
+                                    parsed?.message ?: "Registration failed"
+                                } catch (e: Exception) {
+                                    "Registration failed"
+                                }
                                 onResult(false, errorMsg)
                             }
                         } catch (e: Exception) {
@@ -256,6 +275,8 @@ fun CurreApp() {
                 },
                 onSignOut = {
                     AuthPrefs.logout(context)
+                    pastRuns = emptyList()
+                    emergencyContacts = emptyList()
                     currentScreen = AppScreen.SignUp
                 }
             )

@@ -21,7 +21,7 @@ public class UserService {
 
         Optional<User> existing = userRepository.findByEmail(dto.getEmail());
         if (existing.isPresent()) {
-            throw new IllegalArgumentException("Email already registered");
+            throw new IllegalArgumentException("An account with this email already exists. Try logging in.");
         }
 
         User user = new User();
