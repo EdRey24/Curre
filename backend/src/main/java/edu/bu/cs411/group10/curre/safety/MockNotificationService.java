@@ -31,8 +31,9 @@ public class MockNotificationService implements NotificationService {
     } // END OF METHOD
 
     @Override
-    public void sendTestNotification(String userEmail, String phone){
-        log.info("Mock: Test notification sent to email {} and phone {}", userEmail, phone);
+    public void sendTestNotification(String userEmail, List<EmergencyContact> contacts){
+        String names = getContactNames(contacts);
+        log.info("Mock: Test notification sent to [{}]", names);
     }
 
     private String getContactNames(List<EmergencyContact> contacts) {

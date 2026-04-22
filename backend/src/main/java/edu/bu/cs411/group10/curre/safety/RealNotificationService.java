@@ -52,9 +52,9 @@ public class RealNotificationService implements NotificationService {
     }
 
     @Override
-    public void sendTestNotification(String userEmail, String phone) {
-        sendEmail(userEmail, "Curre Test", "If you see this, Email is working!");
-        if (phone != null) sendSms(phone, "Curre Test: SMS is working!");
+    public void sendTestNotification(String userEmail, List<EmergencyContact> contacts) {
+        String msg = "Curre Test: If you recieve this, emergency alerts are working correctly!";
+        broadcast(contacts, "Curre: Test Alert", msg);
     }
 
     private void broadcast(List<EmergencyContact> contacts, String subject, String body){
