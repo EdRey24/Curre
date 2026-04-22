@@ -35,6 +35,8 @@ import edu.bu.cs411.group10.curre.ui.theme.CurreTheme
 import edu.bu.cs411.group10.curre.ui.model.EmergencyContact
 import edu.bu.cs411.group10.curre.ui.screens.SafetyMode
 import edu.bu.cs411.group10.curre.ui.screens.SafetyScreen
+import edu.bu.cs411.group10.curre.ui.screens.RunsScreen
+import edu.bu.cs411.group10.curre.ui.screens.RunDetailsScreen
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
@@ -79,7 +81,9 @@ private sealed class AppScreen {
     data object SignUp : AppScreen()
     data object Home : AppScreen()
     data object Safety : AppScreen()
+    data object Runs : AppScreen()
     data object ActiveRun : AppScreen()
+    data class RunDetails(val runId: Long) : AppScreen()
     data class EndRun(val summary: RunSummary) : AppScreen()
 }
 
@@ -109,6 +113,8 @@ fun CurreApp() {
     var pastRuns by remember { mutableStateOf<List<PastRun>>(emptyList()) }
 
     var pausedByEndDialog by remember { mutableStateOf(false) }
+
+    var fetchedRuns by remember { mutableStateOf<List<RunDto>>(emptyList()) }
 
     var safetyMode by remember { mutableStateOf(SafetyMode.MODE_A) }
 
@@ -171,11 +177,12 @@ fun CurreApp() {
             else -> { /* not authenticated yet */
             }
         }
-        if (currentScreen is AppScreen.Home) {
+        if (currentScreen is AppScreen.Home || currentScreen is AppScreen.Runs || currentScreen is AppScreen.RunDetails) {
             try {
                 val response = RetrofitClient.api.getRuns()
                 if (response.isSuccessful) {
                     val fetchedDtos = response.body() ?: emptyList()
+                    fetchedRuns = fetchedDtos
                     pastRuns = fetchedDtos.map { dto ->
                         PastRun(
                             dto.id?.toInt() ?: 0,
@@ -250,21 +257,24 @@ fun CurreApp() {
         is AppScreen.Home -> {
             HomeScreen(
                 emergencyContactsCount = emergencyContacts.size,
-                weeklyMiles = 12.5,
-                streakDays = 20,
+                weeklyMiles = fetchedRuns.sumOf { it.distanceMiles },
+                streakDays = fetchedRuns
+                    .map { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(it.startedAt)) }
+                    .distinct()
+                    .size,
                 pastRuns = pastRuns,
                 onStartRun = { attemptStartRun() },
                 onSafetyClick = {
                     currentScreen = AppScreen.Safety
                 },
                 onRunsClick = {
-                    // TODO: Add runs screen navigation later.
+                    currentScreen = AppScreen.Runs
                 },
                 onProfileClick = {
                     // TODO: Add profile screen navigation later.
                 },
-                onRecentRunClick = {
-                    // TODO: Add run detail screen later.
+                onRecentRunClick = { run ->
+                    currentScreen = AppScreen.RunDetails(run.id.toLong())
                 },
                 onSignOut = {
                     currentScreen = AppScreen.SignUp
@@ -278,7 +288,7 @@ fun CurreApp() {
                 onModeChange = { safetyMode = it },
                 onHomeClick = { currentScreen = AppScreen.Home },
                 onStartRunClick = { attemptStartRun() },
-                onRunsClick = { /* TODO */ },
+                onRunsClick = { currentScreen = AppScreen.Runs },
                 onProfileClick = { /* TODO */ },
                 onContactsUpdated = { updatedContacts ->
                     emergencyContacts = updatedContacts
@@ -461,6 +471,34 @@ fun CurreApp() {
                 }
             )
         }
+
+        is AppScreen.Runs -> {
+            RunsScreen(
+                runs = fetchedRuns.sortedByDescending { it.startedAt },
+                onHomeClick = { currentScreen = AppScreen.Home },
+                onSafetyClick = { currentScreen = AppScreen.Safety },
+                onStartRunClick = { attemptStartRun() },
+                onRunsClick = { currentScreen = AppScreen.Runs },
+                onProfileClick = { /* TODO */ },
+                onRunClick = { runId ->
+                    currentScreen = AppScreen.RunDetails(runId)
+                }
+            )
+        }
+
+        is AppScreen.RunDetails -> {
+            val selectedRun = fetchedRuns.firstOrNull { it.id == screen.runId }
+
+            if (selectedRun != null) {
+                RunDetailsScreen(
+                    run = selectedRun,
+                    onBackClick = { currentScreen = AppScreen.Runs }
+                )
+            } else {
+                currentScreen = AppScreen.Runs
+            }
+        }
+
 
         is AppScreen.EndRun -> {
             EndRunScreen(
