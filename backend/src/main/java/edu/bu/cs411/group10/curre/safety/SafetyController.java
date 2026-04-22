@@ -83,8 +83,8 @@ public class SafetyController {
     public ResponseEntity<Void> sendTestNotification(@RequestHeader("X-User-Id") Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
-        notificationService.sendTestNotification(user.getEmail(), null);
         List<EmergencyContact> contacts = contactRepository.findByUserId(userId);
+        notificationService.sendTestNotification(user.getEmail(), contacts);
         return ResponseEntity.ok().build();
     }
 } // END OF CLASS SafetyController
