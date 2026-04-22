@@ -107,7 +107,7 @@ fun ActiveRunScreen(
             Spacer(modifier = Modifier.height(20.dp))
 
             // GPS + safety status row
-            RunStatusBanner(isPaused = isPaused)
+            RunStatusBanner(isPaused = isPaused, safetyMode = safetyMode, gpsStatusText = gpsStatusText)
 
             Spacer(modifier = Modifier.height(30.dp))
 
@@ -251,7 +251,9 @@ fun ActiveRunScreen(
 
 @Composable
 private fun RunStatusBanner(
-    isPaused: Boolean
+    isPaused: Boolean,
+    safetyMode: String,
+    gpsStatusText: String
 ) {
     // Status row below the timer showing GPS and safety mode state.
     Card(
@@ -281,7 +283,7 @@ private fun RunStatusBanner(
                 Spacer(modifier = Modifier.width(10.dp))
 
                 Text(
-                    text = if (isPaused) "Run paused" else "GPS updating 3s ago",
+                    text = gpsStatusText,
                     color = CurreTextMuted,
                     fontSize = 14.sp
                 )
@@ -291,7 +293,7 @@ private fun RunStatusBanner(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(20.dp))
-                    .background(CurreLimeSoft)
+                    .background(if (safetyMode == "None") CurreSurface else CurreLimeSoft)
                     .padding(horizontal = 14.dp, vertical = 8.dp)
             ) {
                 Row(
@@ -300,15 +302,15 @@ private fun RunStatusBanner(
                     Icon(
                         imageVector = Icons.Outlined.Shield,
                         contentDescription = "Safety mode",
-                        tint = CurreSafetyText,
+                        tint = if (safetyMode == "None") CurreTextMuted else CurreSafetyText,
                         modifier = Modifier.size(18.dp)
                     )
 
                     Spacer(modifier = Modifier.width(6.dp))
 
                     Text(
-                        text = "Safety Mode A: ON",
-                        color = CurreSafetyText,
+                        text = if (safetyMode == "None") "Safety: OFF" else "Safety: $safetyMode",
+                        color = if (safetyMode == "None") CurreTextMuted else CurreSafetyText,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp
                     )
