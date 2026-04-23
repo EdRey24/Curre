@@ -37,6 +37,7 @@ import edu.bu.cs411.group10.curre.ui.screens.SafetyMode
 import edu.bu.cs411.group10.curre.ui.screens.SafetyScreen
 import edu.bu.cs411.group10.curre.ui.screens.RunsScreen
 import edu.bu.cs411.group10.curre.ui.screens.RunDetailsScreen
+import edu.bu.cs411.group10.curre.ui.screens.ProfileScreen
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
@@ -99,6 +100,7 @@ private sealed class AppScreen {
         val source: RunDetailsSource
     ) : AppScreen()
     data class EndRun(val summary: RunSummary) : AppScreen()
+    data object Profile : AppScreen()
 }
 
 @Composable
@@ -284,7 +286,7 @@ fun CurreApp() {
                     currentScreen = AppScreen.Runs
                 },
                 onProfileClick = {
-                    // TODO: Add profile screen navigation later.
+                    currentScreen = AppScreen.Profile
                 },
                 onRecentRunClick = { run ->
                     currentScreen = AppScreen.RunDetails(
@@ -302,7 +304,7 @@ fun CurreApp() {
                 onHomeClick = { currentScreen = AppScreen.Home },
                 onStartRunClick = { attemptStartRun() },
                 onRunsClick = { currentScreen = AppScreen.Runs },
-                onProfileClick = { /* TODO */ },
+                onProfileClick = { currentScreen = AppScreen.Profile },
                 onContactsUpdated = { updatedContacts ->
                     emergencyContacts = updatedContacts
                 },
@@ -492,7 +494,7 @@ fun CurreApp() {
                 onSafetyClick = { currentScreen = AppScreen.Safety },
                 onStartRunClick = { attemptStartRun() },
                 onRunsClick = { currentScreen = AppScreen.Runs },
-                onProfileClick = { /* TODO */ },
+                onProfileClick = { currentScreen = AppScreen.Profile },
                 onRunClick = { runId ->
                     currentScreen = AppScreen.RunDetails(
                         runId = runId,
@@ -520,6 +522,19 @@ fun CurreApp() {
             }
         }
 
+        is AppScreen.Profile -> {
+            ProfileScreen(
+                username = "demo",
+                onHomeClick = { currentScreen = AppScreen.Home },
+                onSafetyClick = { currentScreen = AppScreen.Safety },
+                onStartRunClick = { attemptStartRun() },
+                onRunsClick = { currentScreen = AppScreen.Runs },
+                onProfileClick = { currentScreen = AppScreen.Profile },
+                onSignOutClick = {
+                    currentScreen = AppScreen.SignUp
+                }
+            )
+        }
 
         is AppScreen.EndRun -> {
             EndRunScreen(
