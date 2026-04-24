@@ -260,7 +260,13 @@ fun CurreApp() {
                     coroutineScope.launch {
                         try {
                             val response = RetrofitClient.authApi.register(
-                                AuthRequest(firstName, lastName, email, password, confirmPassword)
+                                AuthRequest(
+                                    email = email,
+                                    password = password,
+                                    confirmPassword = confirmPassword,
+                                    firstName = firstName,
+                                    lastName = lastName
+                                )
                             )
                             if (response.isSuccessful && response.body()?.userId != null) {
                                 val body = response.body()!!

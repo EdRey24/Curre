@@ -5,11 +5,11 @@ import retrofit2.http.Body
 import retrofit2.http.POST
 
 data class AuthRequest(
-    val firstName: String? = null,
-    val lastName: String? = null,
     val email: String,
     val password: String,
-    val confirmPassword: String? = null
+    val confirmPassword: String? = null,
+    val firstName: String? = null,
+    val lastName: String? = null
 )
 
 data class AuthResponse(
