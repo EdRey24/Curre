@@ -12,5 +12,6 @@ data class RunSummary(
     val miles: Double,
     val durationText: String,
     val avgPaceText: String,
-    val calories: Int
+    val calories: Int,
+    val routeSegments: List<List<RoutePointDto>> = listOf(emptyList())
 )

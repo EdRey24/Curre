@@ -10,13 +10,12 @@ import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.*;
-
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
-
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
 
 /**
  * The system has exactly one valid user: Demo with password Password1.
@@ -58,6 +57,16 @@ public class SafetyServiceTest {
         testContact.setId(10L);
         testContact.setEmail("contact@example.com");
         testContact.setUser(testUser);
+
+        lenient().when(userRepository.findByEmail(anyString()))
+                .thenReturn(Optional.of(testUser));
+        lenient().when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+            User savedUser = invocation.getArgument(0);
+            if (savedUser.getId() == null) {
+                savedUser.setId(1L); // Give it a fake DB ID
+            }
+            return savedUser;
+        });
     }
 
     @Test
@@ -146,5 +155,139 @@ public class SafetyServiceTest {
 
         assertThrows(EntityNotFoundException.class, () -> safetyService.checkIn(200L, 1L));
         System.out.println("PASSED: Check‑in on non‑existent active session throws exception");
+    }
+
+    @Test
+    public void testStartSafetyMonitoringWithExistingActiveSession() {
+        System.out.println("Starting test: Start safety deactivates existing active session");
+        when(runRepository.findById(100L)).thenReturn(Optional.of(testRun));
+        when(contactRepository.findByUserId(1L)).thenReturn(List.of(testContact));
+
+        SafetySession existingSession = new SafetySession();
+        existingSession.setRunId(100L);
+        existingSession.setActive(true);
+        when(sessionRepository.findByRunIdAndActiveTrue(100L)).thenReturn(Optional.of(existingSession));
+
+        safetyService.startSafetyMonitoring(100L, 1L, 900);
+
+        // Verifies the ifPresent lambda executed to deactivate the old session
+        assertFalse(existingSession.isActive());
+        verify(sessionRepository, atLeastOnce()).save(existingSession);
+        System.out.println("PASSED: Start safety deactivates existing active session");
+    }
+
+    @Test
+    public void testCheckInWrongUser() {
+        System.out.println("Starting test: Check-in with wrong user ID throws SecurityException");
+        SafetySession session = new SafetySession();
+        session.setRunId(100L);
+        session.setUserId(2L); // A different user
+        session.setActive(true);
+
+        when(sessionRepository.findByRunIdAndActiveTrue(100L)).thenReturn(Optional.of(session));
+
+        SecurityException ex = assertThrows(SecurityException.class, () -> safetyService.checkIn(100L, 1L));
+        assertEquals("Run does not belong to this user", ex.getMessage());
+        System.out.println("PASSED: Check-in with wrong user ID throws SecurityException");
+    }
+
+    @Test
+    public void testStopSafetyMonitoringNoActiveSession() {
+        System.out.println("Starting test: Stop safety with no active session ignores gracefully");
+        when(sessionRepository.findByRunIdAndActiveTrue(100L)).thenReturn(Optional.empty());
+
+        assertDoesNotThrow(() -> safetyService.stopSafetyMonitoring(100L, 1L));
+        verify(notificationService, never()).sendRunEndedNotification(anyString(), anyList());
+        System.out.println("PASSED: Stop safety with no active session ignores gracefully");
+    }
+
+    @Test
+    public void testStopSafetyMonitoringWrongUser() {
+        System.out.println("Starting test: Stop safety with wrong user ID ignores gracefully");
+        SafetySession session = new SafetySession();
+        session.setRunId(100L);
+        session.setUserId(2L); // Different user
+        session.setActive(true);
+
+        when(sessionRepository.findByRunIdAndActiveTrue(100L)).thenReturn(Optional.of(session));
+
+        safetyService.stopSafetyMonitoring(100L, 1L);
+
+        assertTrue(session.isActive()); // Session should remain active
+        verify(notificationService, never()).sendRunEndedNotification(anyString(), anyList());
+        System.out.println("PASSED: Stop safety with wrong user ID ignores gracefully");
+    }
+
+    @Test
+    public void testGetOrCreateUserAutoCreatesUser() {
+        System.out.println("Starting test: Auto-create user when user does not exist");
+        // Override the lenient setup to return empty, triggering the orElseGet branch
+        when(userRepository.findByEmail("user99@curre.com")).thenReturn(Optional.empty());
+
+        SafetySession session = new SafetySession();
+        session.setRunId(100L);
+        session.setUserId(99L);
+        session.setActive(true);
+        when(sessionRepository.findByRunIdAndActiveTrue(100L)).thenReturn(Optional.of(session));
+        when(contactRepository.findByUserId(99L)).thenReturn(List.of(testContact));
+
+        // Calling stop triggers getOrCreateUser(99L) under the hood
+        safetyService.stopSafetyMonitoring(100L, 99L);
+
+        // Verify the lambda logic executed and saved a new user
+        verify(userRepository).save(argThat(u ->
+                "user99@curre.com".equals(u.getEmail()) && "default".equals(u.getPassword())
+        ));
+        System.out.println("PASSED: Auto-create user when user does not exist");
+    }
+
+    @Test
+    public void testOverdueCheckAlertTriggered() throws InterruptedException {
+        System.out.println("Starting test: Overdue check triggers alert");
+        when(runRepository.findById(100L)).thenReturn(Optional.of(testRun));
+        when(contactRepository.findByUserId(1L)).thenReturn(List.of(testContact));
+
+        // Ensure the user repository mock is set up so getOrCreateUser doesn't fail in the background thread
+        when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+
+        // Create a session heavily in the past so the delay logic evaluates to true
+        SafetySession overdueSession = new SafetySession();
+        overdueSession.setRunId(100L);
+        overdueSession.setUserId(1L);
+        overdueSession.setActive(true);
+        overdueSession.setLastCheckIn(Instant.now().minusSeconds(50));
+
+        // THE FIX: Chain the return values!
+        when(sessionRepository.findByRunIdAndActiveTrue(100L))
+                .thenReturn(Optional.empty())               // 1st call: startSafetyMonitoring checks for existing session
+                .thenReturn(Optional.of(overdueSession));   // 2nd call: scheduled background task evaluates the session
+
+        // Trigger with a 0 second delay so the scheduled task executes immediately
+        safetyService.startSafetyMonitoring(100L, 1L, 0);
+
+        // Allow the SingleThreadScheduledExecutor a brief moment to process the Runnable
+        Thread.sleep(100);
+
+        verify(notificationService, atLeastOnce()).sendOverdueAlert(eq("demo@curre.com"), anyList(), isNull(), isNull());
+        assertFalse(overdueSession.isActive());
+        System.out.println("PASSED: Overdue check triggers alert");
+    }
+
+    @Test
+    public void testOverdueCheckNotTriggeredWhenInactive() throws InterruptedException {
+        System.out.println("Starting test: Overdue check ignores inactive sessions");
+        when(runRepository.findById(100L)).thenReturn(Optional.of(testRun));
+        when(contactRepository.findByUserId(1L)).thenReturn(List.of(testContact));
+
+        SafetySession inactiveSession = new SafetySession();
+        inactiveSession.setActive(false); // Covers the `if (session == null || !session.isActive()) return;` branch
+
+        when(sessionRepository.findByRunIdAndActiveTrue(100L)).thenReturn(Optional.of(inactiveSession));
+
+        safetyService.startSafetyMonitoring(100L, 1L, 0);
+        Thread.sleep(100);
+
+        verify(notificationService, never()).sendOverdueAlert(anyString(), anyList(), any(), any());
+        System.out.println("PASSED: Overdue check ignores inactive sessions");
     }
 } // END OF CLASS SafetyServiceTest

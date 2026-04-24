@@ -1,11 +1,21 @@
 package edu.bu.cs411.group10.curre
 
+import android.annotation.SuppressLint
 import android.content.Context
+import android.location.Location
+import android.os.Looper
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalContext
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.Priority
+import edu.bu.cs411.group10.curre.ui.model.RoutePointDto
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.ui.platform.LocalContext
 import edu.bu.cs411.group10.curre.auth.AuthPrefs
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -49,6 +59,9 @@ import edu.bu.cs411.group10.curre.ui.theme.CurreTextMuted
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.*
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import kotlin.collections.emptyList
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -111,6 +124,29 @@ fun CurreApp() {
     var isLoadingContacts by remember { mutableStateOf(false) }
     var showNoContactsError by remember { mutableStateOf(false) }
 
+    val locationPermissionRequest = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val fineLocationGranted = permissions.getOrDefault(android.Manifest.permission.ACCESS_FINE_LOCATION, false)
+        if (fineLocationGranted){
+            println("GPS Permission Granted!")
+        } else {
+            println("GPS Permission Denied :(")
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        locationPermissionRequest.launch(arrayOf(
+            android.Manifest.permission.ACCESS_FINE_LOCATION,
+            android.Manifest.permission.ACCESS_COARSE_LOCATION
+        ))
+    }
+
+    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+    var routeSegments by remember { mutableStateOf<List<List<RoutePointDto>>>(listOf(emptyList())) }
+    var dynamicDistanceMiles by remember { mutableStateOf(0.0)}
+    var ignoreNextDistance by remember { mutableStateOf(false) }
+
     LaunchedEffect(currentScreen) {
         when (currentScreen) {
             is AppScreen.Home, is AppScreen.Safety, is AppScreen.ActiveRun -> {
@@ -172,6 +208,9 @@ fun CurreApp() {
             isPaused = false
             currentRunId = null
             currentScreen = AppScreen.ActiveRun
+            routeSegments = listOf(emptyList())
+            dynamicDistanceMiles = 0.0
+            ignoreNextDistance = false
         }
     }
 
@@ -217,11 +256,11 @@ fun CurreApp() {
 
         is AppScreen.SignUp -> {
             SignUpScreen(
-                onCreateAccount = { email, password, confirmPassword, onResult ->
+                onCreateAccount = { firstName, lastName, email, password, confirmPassword, onResult ->
                     coroutineScope.launch {
                         try {
                             val response = RetrofitClient.authApi.register(
-                                AuthRequest(email, password, confirmPassword)
+                                AuthRequest(firstName, lastName, email, password, confirmPassword)
                             )
                             if (response.isSuccessful && response.body()?.userId != null) {
                                 val body = response.body()!!
@@ -315,17 +354,72 @@ fun CurreApp() {
                 }
             }
 
+            DisposableEffect(Unit) {
+                val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 3000).build()
+                val locationCallback = object : LocationCallback(){
+                    override fun onLocationResult(locationResult: LocationResult){
+                        if (!isPaused){
+                            for (location in locationResult.locations){
+                                val newPoint = RoutePointDto(
+                                    latitude = location.latitude,
+                                    longitude = location.longitude,
+                                    timestampMillis = System.currentTimeMillis()
+                                )
+                                val currentSegments = routeSegments.toMutableList()
+                                val activeSegment = currentSegments.last().toMutableList()
+
+                                activeSegment.add(newPoint)
+                                currentSegments[currentSegments.lastIndex] = activeSegment
+                                routeSegments = currentSegments
+
+                                if (activeSegment.size >= 2){
+                                    val lastPoint = activeSegment[activeSegment.size - 2]
+                                    val results = FloatArray(1)
+                                    Location.distanceBetween(
+                                        lastPoint.latitude, lastPoint.longitude,
+                                        newPoint.latitude, newPoint.longitude,
+                                        results
+                                    )
+                                    // Convert meters to miles and update state
+                                    dynamicDistanceMiles += (results[0] / 1609.34)
+                                }
+                            }
+                        }
+                    }
+                }
+                @SuppressLint("MissingPermission")
+                try {
+                    fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
+                } catch (e: SecurityException){
+                    println("GPS Permission denied!")
+                }
+
+                onDispose {
+                    fusedLocationClient.removeLocationUpdates(locationCallback)
+                }
+            }
+
+            val liveDurationSecs = (elapsedMillis / 1000).toInt()
+            val liveCalories = (dynamicDistanceMiles * 100).toInt()
+
+            val livePace = if (dynamicDistanceMiles > 0){
+                (liveDurationSecs / 60.0) / dynamicDistanceMiles
+            } else {
+                0.0
+            }
+
             ActiveRunScreen(
                 elapsedTime = formatElapsedTime(elapsedMillis),
-                distanceMiles = 1.0,
-                calories = 30,
-                avgPace = 11.9,
+                distanceMiles = dynamicDistanceMiles,
+                calories = liveCalories,
+                avgPace = livePace,
                 isPaused = isPaused,
                 onPauseResumeClick = {
                     if (isPaused) {
                         runSegmentStartTimeMillis = System.currentTimeMillis()
                         isPaused = false
                         pausedByEndDialog = false
+                        routeSegments = routeSegments + listOf(emptyList())
                     } else {
                         accumulatedElapsedMillis +=
                             (System.currentTimeMillis() - runSegmentStartTimeMillis)
@@ -339,20 +433,22 @@ fun CurreApp() {
                         accumulatedElapsedMillis + (System.currentTimeMillis() - runSegmentStartTimeMillis)
                     }
 
-                    val distance = 0.15
+                    val distance = dynamicDistanceMiles
                     val durationSecs = (finalElapsedMillis / 1000).toInt()
                     val paceSecsPerMile = if (distance > 0) durationSecs / distance else 0.0
                     val paceMinutes = (paceSecsPerMile / 60).toInt()
                     val paceSeconds = (paceSecsPerMile % 60).toInt()
                     val formattedPace = String.format("%d:%02d", paceMinutes, paceSeconds)
                     val estimatedCalories = (distance * 100).toInt()
+                    val flatPoints = routeSegments.flatten()
                     val runToSave = RunDto(
                         startedAt = System.currentTimeMillis() - finalElapsedMillis,
                         endedAt = System.currentTimeMillis(),
                         distanceMiles = distance,
                         durationSeconds = durationSecs,
                         avgPaceSecsPerMile = if (distance > 0) durationSecs / distance else 0.0,
-                        calories = estimatedCalories
+                        calories = estimatedCalories,
+                        routePoints = flatPoints
                     )
 
                     coroutineScope.launch {
@@ -389,7 +485,8 @@ fun CurreApp() {
                             miles = distance,
                             durationText = formatSummaryDuration(finalElapsedMillis),
                             avgPaceText = formattedPace,
-                            calories = estimatedCalories
+                            calories = estimatedCalories,
+                            routeSegments = routeSegments
                         )
                     )
                 },
@@ -399,6 +496,7 @@ fun CurreApp() {
                             (System.currentTimeMillis() - runSegmentStartTimeMillis)
                         isPaused = true
                         pausedByEndDialog = true
+                        routeSegments = routeSegments + listOf(emptyList())
                     } else {
                         pausedByEndDialog = false
                     }

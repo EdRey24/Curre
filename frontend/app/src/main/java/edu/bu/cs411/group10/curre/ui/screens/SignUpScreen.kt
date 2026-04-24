@@ -41,14 +41,18 @@ import edu.bu.cs411.group10.curre.ui.theme.CurreTextMuted
 
 @Composable
 fun SignUpScreen(
-    onCreateAccount: (String, String, String, (Boolean, String) -> Unit) -> Unit,
+    onCreateAccount: (String, String, String, String, String, (Boolean, String) -> Unit) -> Unit,
     onGoToLogin: () -> Unit,
     onSignUpSuccess: () -> Unit
 ) {
+    var firstName by remember { mutableStateOf("") }
+    var lastName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
 
+    var firstNameError by remember { mutableStateOf("") }
+    var lastNameError by remember { mutableStateOf("") }
     var emailError by remember { mutableStateOf("") }
     var passwordError by remember { mutableStateOf("") }
     var confirmPasswordError by remember { mutableStateOf("") }
@@ -81,6 +85,84 @@ fun SignUpScreen(
             Spacer(modifier = Modifier.height(34.dp))
 
             AuthCard {
+                Text(
+                    text = "First Name",
+                    color = CurreNavy,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = firstName,
+                    onValueChange = {
+                        firstName = it
+                        firstNameError = ""
+                        statusMessage = ""
+                    },
+                    placeholder = { Text("Enter your first name") },
+                    singleLine = true,
+                    isError = firstNameError.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = CurreLime,
+                        unfocusedBorderColor = Color(0xFFD4D8DE),
+                        focusedContainerColor = CurreSurface,
+                        unfocusedContainerColor = CurreSurface,
+                        errorBorderColor = Color(0xFFD9534F)
+                    )
+                )
+
+                if (firstNameError.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = firstNameError,
+                        color = Color(0xFFD9534F)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(22.dp))
+
+                Text(
+                    text = "Last Name",
+                    color = CurreNavy,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = lastName,
+                    onValueChange = {
+                        lastName = it
+                        lastNameError = ""
+                        statusMessage = ""
+                    },
+                    placeholder = { Text("Enter your last name") },
+                    singleLine = true,
+                    isError = lastNameError.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = CurreLime,
+                        unfocusedBorderColor = Color(0xFFD4D8DE),
+                        focusedContainerColor = CurreSurface,
+                        unfocusedContainerColor = CurreSurface,
+                        errorBorderColor = Color(0xFFD9534F)
+                    )
+                )
+
+                if (lastNameError.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = lastNameError,
+                        color = Color(0xFFD9534F)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(22.dp))
+
                 Text(
                     text = "Email",
                     color = CurreNavy,
@@ -173,8 +255,13 @@ fun SignUpScreen(
 
                 Button(
                     onClick = {
+                        val trimmedFirstName = firstName.trim()
+                        val trimmedLastName = lastName.trim()
                         val trimmedEmail = email.trim()
                         val passwordValidation = validatePassword(password)
+
+                        firstNameError = if (trimmedFirstName.isBlank()) "First name is required" else ""
+                        lastNameError = if (trimmedLastName.isBlank()) "Last name is required" else ""
 
                         emailError = when {
                             trimmedEmail.isBlank() -> "Email is required"
@@ -191,13 +278,15 @@ fun SignUpScreen(
                         }
 
                         if (
+                            firstNameError.isBlank() &&
+                            lastNameError.isBlank() &&
                             emailError.isBlank() &&
                             passwordError.isBlank() &&
                             confirmPasswordError.isBlank()
                         ) {
                             isLoading = true
                             statusMessage = ""
-                            onCreateAccount(trimmedEmail, password, confirmPassword) { success, message ->
+                            onCreateAccount(trimmedFirstName, trimmedLastName, trimmedEmail, password, confirmPassword) { success, message ->
                                 isLoading = false
                                 statusMessage = message
                                 if (success) {

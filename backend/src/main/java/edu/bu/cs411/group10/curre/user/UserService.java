@@ -25,6 +25,8 @@ public class UserService {
         }
 
         User user = new User();
+        user.setFirstName(dto.getFirstName());
+        user.setLastName(dto.getLastName());
         user.setEmail(dto.getEmail());
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
         User saved = userRepository.save(user);

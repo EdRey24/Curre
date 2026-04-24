@@ -7,5 +7,12 @@ data class RunDto(
     val distanceMiles: Double,
     val durationSeconds: Int,
     val avgPaceSecsPerMile: Double,
-    val calories: Int
+    val calories: Int,
+    val routePoints: List<RoutePointDto> = emptyList()
+)
+
+data class RoutePointDto(
+    val latitude: Double,
+    val longitude: Double,
+    val timestampMillis: Long
 )

@@ -1,5 +1,12 @@
 package edu.bu.cs411.group10.curre.ui.screens
 
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.platform.LocalContext
+import org.osmdroid.config.Configuration
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.Polyline
+import org.osmdroid.util.BoundingBox
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,12 +45,17 @@ import edu.bu.cs411.group10.curre.ui.theme.CurreOrange
 import edu.bu.cs411.group10.curre.ui.theme.CurreSafetyText
 import edu.bu.cs411.group10.curre.ui.theme.CurreSurface
 import edu.bu.cs411.group10.curre.ui.theme.CurreTextMuted
+import androidx.core.graphics.toColorInt
 
 @Composable
 fun EndRunScreen(
     summary: RunSummary,
     onDoneClick: () -> Unit
 ) {
+    val context = LocalContext.current
+    Configuration.getInstance().userAgentValue = context.packageName
+    val geoPoints = summary.routeSegments.flatten().map { GeoPoint(it.latitude, it.longitude)}
+
     // Full-screen page for the run completion summary.
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -66,7 +78,49 @@ fun EndRunScreen(
                 fontSize = 34.sp
             )
 
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(24.dp))
+
+            if(geoPoints.isNotEmpty()){
+                Card(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = CurreSurface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, CurreBorder.copy(alpha = 0.5f))
+                ){
+                    AndroidView(
+                        modifier = Modifier.fillMaxWidth(),
+                        factory = { ctx ->
+                            MapView(ctx).apply {
+                                setMultiTouchControls(true)
+
+                                summary.routeSegments.forEach { segment ->
+                                    if (segment.size >= 2){
+                                        val segmentGeoPoints = segment.map { GeoPoint(it.latitude, it.longitude)}
+                                        val routeLine = Polyline().apply {
+                                            setPoints(segmentGeoPoints)
+                                            outlinePaint.color = "#FF5722".toColorInt()
+                                            outlinePaint.strokeWidth = 15f
+                                            outlinePaint.strokeCap = android.graphics.Paint.Cap.ROUND
+                                            outlinePaint.strokeJoin = android.graphics.Paint.Join.ROUND
+                                        }
+                                        overlays.add(routeLine)
+                                    }
+                                }
+                                val boundingBox = BoundingBox.fromGeoPoints(geoPoints)
+
+                                post {
+                                    zoomToBoundingBox(boundingBox, false, 150)
+                                }
+                            }
+                        }
+                    )
+                }
+            } else {
+                Spacer(modifier = Modifier.weight(1f))
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
 
             // Summary card in the middle of the screen.
             Card(
@@ -155,7 +209,7 @@ fun EndRunScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Bottom confirmation button that returns the user to home.
             Button(
