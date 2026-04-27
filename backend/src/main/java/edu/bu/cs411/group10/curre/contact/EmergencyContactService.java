@@ -31,8 +31,13 @@ public class EmergencyContactService {
     private final Object userCreationLock = new Object();
 
     private User getOrCreateUser(Long userId) {
+        // First try to find by ID (for real authenticated users)
+        Optional<User> byId = userRepository.findById(userId);
+        if (byId.isPresent()) {
+            return byId.get();
+        }
+        // Fallback: look up by email pattern (for legacy/test users)
         String email = "user" + userId + "@curre.com";
-        // First try to find existing user
         Optional<User> existing = userRepository.findByEmail(email);
         if (existing.isPresent()) {
             return existing.get();
@@ -40,11 +45,17 @@ public class EmergencyContactService {
         // Synchronize to avoid duplicate inserts from concurrent requests
         synchronized (userCreationLock) {
             // Double-check after acquiring lock
-            Optional<User> again = userRepository.findByEmail(email);
-            if (again.isPresent()) {
-                return again.get();
+            Optional<User> againById = userRepository.findById(userId);
+            if (againById.isPresent()) {
+                return againById.get();
+            }
+            Optional<User> againByEmail = userRepository.findByEmail(email);
+            if (againByEmail.isPresent()) {
+                return againByEmail.get();
             }
             User newUser = new User();
+            newUser.setFirstName("Test");
+            newUser.setLastName("User");
             newUser.setEmail(email);
             newUser.setPassword("default");
             User saved = userRepository.save(newUser);
@@ -69,10 +80,10 @@ public class EmergencyContactService {
     @Transactional
     public EmergencyContactDTO updateContact(Long contactId, Long userId, EmergencyContactDTO dto) {
         // Ensure user exists (auto‑create if needed)
-        getOrCreateUser(userId);
+        User user = getOrCreateUser(userId);
         EmergencyContact contact = contactRepository.findById(contactId)
                 .orElseThrow(() -> new EntityNotFoundException("Contact not found with id: " + contactId));
-        if (!contact.getUser().getId().equals(userId)) {
+        if (!contact.getUser().getId().equals(user.getId())) {
             throw new SecurityException("Contact does not belong to this user");
         }
         contact.setName(dto.getName());
@@ -86,10 +97,10 @@ public class EmergencyContactService {
     @Transactional
     public void deleteContact(Long contactId, Long userId) {
         // Ensure user exists (auto‑create if needed)
-        getOrCreateUser(userId);
+        User user = getOrCreateUser(userId);
         EmergencyContact contact = contactRepository.findById(contactId)
                 .orElseThrow(() -> new EntityNotFoundException("Contact not found with id: " + contactId));
-        if (!contact.getUser().getId().equals(userId)) {
+        if (!contact.getUser().getId().equals(user.getId())) {
             throw new SecurityException("Contact does not belong to this user");
         }
         contactRepository.delete(contact);
@@ -98,11 +109,11 @@ public class EmergencyContactService {
 
     public List<EmergencyContactDTO> getContactsForUser(Long userId) {
         // Ensure user exists (auto‑create if needed)
-        getOrCreateUser(userId);
-        List<EmergencyContactDTO> contacts = contactRepository.findByUserId(userId).stream()
+        User user = getOrCreateUser(userId);
+        List<EmergencyContactDTO> contacts = contactRepository.findByUserId(user.getId()).stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
-        log.info("Returning {} contacts for user ID {}", contacts.size(), userId); // DEBUG
+        log.info("Returning {} contacts for user ID {}", contacts.size(), user.getId()); // DEBUG
         return contacts;
     } // END OF METHOD getContactsForUser
 

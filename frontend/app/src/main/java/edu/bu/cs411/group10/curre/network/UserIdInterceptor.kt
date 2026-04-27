@@ -1,15 +1,21 @@
 package edu.bu.cs411.group10.curre.network
 
+import android.content.Context
 import okhttp3.Interceptor
 import okhttp3.Response
 
-class UserIdInterceptor : Interceptor {
+class UserIdInterceptor(private val context: Context) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
+        val prefs = context.getSharedPreferences("curre_auth", Context.MODE_PRIVATE)
+        val userId = prefs.getLong("user_id", -1L)
+
         val original = chain.request()
-        val request = original.newBuilder()
-            .header("X-User-Id", "1")   // Hardcoded demo user ID
-            .method(original.method, original.body)
-            .build()
-        return chain.proceed(request)
+        val requestBuilder = original.newBuilder()
+
+        if (userId != -1L) {
+            requestBuilder.header("X-User-Id", userId.toString())
+        }
+
+        return chain.proceed(requestBuilder.method(original.method, original.body).build())
     }
 }

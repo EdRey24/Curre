@@ -1,6 +1,7 @@
 package edu.bu.cs411.group10.curre
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.location.Location
 import android.os.Looper
 import androidx.compose.runtime.DisposableEffect
@@ -15,6 +16,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import edu.bu.cs411.group10.curre.auth.AuthPrefs
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -38,6 +40,7 @@ import edu.bu.cs411.group10.curre.ui.screens.SafetyScreen
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
+import edu.bu.cs411.group10.curre.network.AuthRequest
 import edu.bu.cs411.group10.curre.network.RetrofitClient
 import edu.bu.cs411.group10.curre.ui.model.RunDto
 import androidx.compose.runtime.LaunchedEffect
@@ -66,6 +69,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        RetrofitClient.init(this)
 
         setContent {
             CurreTheme {
@@ -87,7 +91,9 @@ private sealed class AppScreen {
 
 @Composable
 fun CurreApp() {
-    var currentScreen by remember { mutableStateOf<AppScreen>(AppScreen.SignUp) }
+    val context = LocalContext.current
+    val initialScreen = if (AuthPrefs.isLoggedIn(context)) AppScreen.Home else AppScreen.SignUp
+    var currentScreen by remember { mutableStateOf<AppScreen>(initialScreen) }
 
     var registeredUsers by remember {
         mutableStateOf(
@@ -132,7 +138,6 @@ fun CurreApp() {
         ))
     }
 
-    val context = LocalContext.current
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
     var routeSegments by remember { mutableStateOf<List<List<RoutePointDto>>>(listOf(emptyList())) }
     var dynamicDistanceMiles by remember { mutableDoubleStateOf(0.0) }
@@ -268,10 +273,32 @@ fun CurreApp() {
     when (val screen = currentScreen) {
         is AppScreen.Login -> {
             LoginScreen(
-                onLogin = { username, password ->
-                    registeredUsers.any {
-                        it.username.equals(username, ignoreCase = true) &&
-                                it.password == password
+                onLogin = { email, password, onResult ->
+                    coroutineScope.launch {
+                        try {
+                            val response = RetrofitClient.authApi.login(
+                                AuthRequest(email, password)
+                            )
+                            if (response.isSuccessful && response.body()?.userId != null) {
+                                val body = response.body()!!
+                                AuthPrefs.saveLogin(context, body.userId!!, body.email ?: email)
+                                onResult(true, body.message)
+                            } else {
+                                val errorMsg = try {
+                                    val errorJson = response.errorBody()?.string()
+                                    val parsed = com.google.gson.Gson().fromJson(
+                                        errorJson,
+                                        edu.bu.cs411.group10.curre.network.AuthResponse::class.java
+                                    )
+                                    parsed?.message ?: "Login failed"
+                                } catch (e: Exception) {
+                                    "Login failed"
+                                }
+                                onResult(false, errorMsg)
+                            }
+                        } catch (e: Exception) {
+                            onResult(false, "Network error: ${e.message}")
+                        }
                     }
                 },
                 onGoToSignUp = {
@@ -285,14 +312,39 @@ fun CurreApp() {
 
         is AppScreen.SignUp -> {
             SignUpScreen(
-                isUsernameTaken = { username ->
-                    registeredUsers.any { it.username.equals(username, ignoreCase = true) }
-                },
-                onCreateAccount = { username, password ->
-                    registeredUsers = registeredUsers + UserAccount(
-                        username = username,
-                        password = password
-                    )
+                onCreateAccount = { firstName, lastName, email, password, confirmPassword, onResult ->
+                    coroutineScope.launch {
+                        try {
+                            val response = RetrofitClient.authApi.register(
+                                AuthRequest(
+                                    email = email,
+                                    password = password,
+                                    confirmPassword = confirmPassword,
+                                    firstName = firstName,
+                                    lastName = lastName
+                                )
+                            )
+                            if (response.isSuccessful && response.body()?.userId != null) {
+                                val body = response.body()!!
+                                AuthPrefs.saveLogin(context, body.userId!!, body.email ?: email)
+                                onResult(true, body.message)
+                            } else {
+                                val errorMsg = try {
+                                    val errorJson = response.errorBody()?.string()
+                                    val parsed = com.google.gson.Gson().fromJson(
+                                        errorJson,
+                                        edu.bu.cs411.group10.curre.network.AuthResponse::class.java
+                                    )
+                                    parsed?.message ?: "Registration failed"
+                                } catch (e: Exception) {
+                                    "Registration failed"
+                                }
+                                onResult(false, errorMsg)
+                            }
+                        } catch (e: Exception) {
+                            onResult(false, "Network error: ${e.message}")
+                        }
+                    }
                 },
                 onGoToLogin = {
                     currentScreen = AppScreen.Login
@@ -323,6 +375,9 @@ fun CurreApp() {
                     // TODO: Add run detail screen later.
                 },
                 onSignOut = {
+                    AuthPrefs.logout(context)
+                    pastRuns = emptyList()
+                    emergencyContacts = emptyList()
                     currentScreen = AppScreen.SignUp
                 }
             )
