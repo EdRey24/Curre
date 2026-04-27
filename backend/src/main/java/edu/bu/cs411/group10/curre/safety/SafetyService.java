@@ -40,19 +40,10 @@ public class SafetyService {
         this.notificationService = notificationService;
     }
 
-    private User getOrCreateUser(Long userId) {
-        String email = "user" + userId + "@curre.com";
-        return userRepository.findByEmail(email)
-                .orElseGet(() -> {
-                    User newUser = new User();
-                    // Do NOT set ID; let database auto‑generate
-                    newUser.setEmail(email);
-                    newUser.setPassword("default");
-                    User saved = userRepository.save(newUser);
-                    log.info("SafetyService: Auto‑created user with email {} and ID {}", email, saved.getId()); // DEBUG
-                    return saved;
-                });
-    } // END OF METHOD getOrCreateUser
+    private User getUser(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found with ID: " + userId));
+    }
 
     @Transactional
     public void startSafetyMonitoring(Long runId, Long userId, Integer checkInIntervalSeconds, Double lat, Double lng) {
@@ -83,8 +74,9 @@ public class SafetyService {
 
         scheduleOverdueCheck(runId, userId, checkInIntervalSeconds);
 
-        User user = getOrCreateUser(userId);
-        notificationService.sendRunStartedNotification(user.getEmail(), contacts, lat, lng);
+        User user = getUser(userId);
+        String fullName = user.getFirstName() + " " + user.getLastName();
+        notificationService.sendRunStartedNotification(fullName, contacts, lat, lng);
         log.info("Started safety monitoring for run {} user {}", runId, userId); // DEBUG
     } // END OF METHOD startSafetyMonitoring
 
@@ -114,9 +106,10 @@ public class SafetyService {
         sessionRepository.save(session);
         cancelScheduledTask(runId);
 
-        User user = getOrCreateUser(userId);
+        User user = getUser(userId);
         List<EmergencyContact> contacts = contactRepository.findByUserId(userId);
-        notificationService.sendRunEndedNotification(user.getEmail(), contacts);
+        String fullName = user.getFirstName() + " " + user.getLastName();
+        notificationService.sendRunEndedNotification(fullName, contacts);
         log.info("Stopped safety monitoring for run {} user {}", runId, userId); // DEBUG
     } // END OF METHOD stopSafetyMonitoring
 
@@ -142,11 +135,12 @@ public class SafetyService {
             return;
         }
 
-        User user = getOrCreateUser(userId);
+        User user = getUser(userId);
         List<EmergencyContact> contacts = contactRepository.findByUserId(userId);
         Double lastLat = session.getLastLat();
         Double lastLng = session.getLastLng();
-        notificationService.sendOverdueAlert(user.getEmail(), contacts, lastLat, lastLng);
+        String fullName = user.getFirstName() + " " + user.getLastName();
+        notificationService.sendOverdueAlert(fullName, contacts, lastLat, lastLng);
         int newCount = (session.getAlertCount() == null ? 0 : session.getAlertCount()) + 1;
         session.setAlertCount(newCount);
         sessionRepository.save(session);
