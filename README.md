@@ -92,6 +92,7 @@ To add the API keys to your local Run Configuration:
 1. Open **Android Studio**.
 2. Click **File > Open...** and select the `frontend` folder from this repository.
 3. Wait for Android Studio to completely finish the Gradle Sync (this can take a few minutes on the first run).
+4. **Troubleshooting Tip:** If Android Studio does not automatically detect the app configuration or the "Run" button is grayed out, use the project explorer on the left to navigate to `frontend/app/src/main/java/edu/bu/cs411/group10/curre/MainActivity.kt` and double-click to open it. Opening this file forces the IDE to index the Android framework and will typically resolve the issue.
 
 #### Compile and Run
 
