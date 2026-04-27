@@ -47,7 +47,6 @@ import androidx.compose.runtime.LaunchedEffect
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import edu.bu.cs411.group10.curre.network.StartSafetyRequest
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import edu.bu.cs411.group10.curre.ui.theme.CurreSurface
@@ -58,10 +57,13 @@ import edu.bu.cs411.group10.curre.ui.theme.CurreNavy
 import edu.bu.cs411.group10.curre.ui.theme.CurreTextMuted
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.*
-
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.mutableDoubleStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import kotlin.collections.emptyList
+
+const val SAFETY_CHECK_IN_INTERVAL = 30
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -105,25 +107,19 @@ fun CurreApp() {
     }
 
     val coroutineScope = rememberCoroutineScope()
-
     var runSegmentStartTimeMillis by remember { mutableLongStateOf(0L) }
-
     var accumulatedElapsedMillis by remember { mutableLongStateOf(0L) }
-
     var isPaused by remember { mutableStateOf(false) }
-
     var pastRuns by remember { mutableStateOf<List<PastRun>>(emptyList()) }
-
     var pausedByEndDialog by remember { mutableStateOf(false) }
-
     var safetyMode by remember { mutableStateOf(SafetyMode.MODE_A) }
-
     var currentRunId by remember { mutableStateOf<Long?>(null) }
-
+    var checkInIntervalSeconds by remember { mutableIntStateOf(SAFETY_CHECK_IN_INTERVAL) }
     var emergencyContacts by remember { mutableStateOf<List<EmergencyContact>>(emptyList()) }
     var isLoadingContacts by remember { mutableStateOf(false) }
     var showNoContactsError by remember { mutableStateOf(false) }
-
+    var alertsTriggered by remember { mutableIntStateOf(0) }
+    var lastGpsUpdateTimeMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
     val locationPermissionRequest = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -144,14 +140,15 @@ fun CurreApp() {
 
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
     var routeSegments by remember { mutableStateOf<List<List<RoutePointDto>>>(listOf(emptyList())) }
-    var dynamicDistanceMiles by remember { mutableStateOf(0.0)}
-    var ignoreNextDistance by remember { mutableStateOf(false) }
+    var dynamicDistanceMiles by remember { mutableDoubleStateOf(0.0) }
+    var checkInAccumulatedMillis by remember { mutableLongStateOf(0L) }
+    var checkInSegmentStartTime by remember { mutableLongStateOf(0L) }
+    var isCheckInOverdue by remember { mutableStateOf(false) }
 
     LaunchedEffect(currentScreen) {
         when (currentScreen) {
             is AppScreen.Home, is AppScreen.Safety, is AppScreen.ActiveRun -> {
                 if (emergencyContacts.isEmpty() && !isLoadingContacts) {
-                    isLoadingContacts = true
                     try {
                         val response = RetrofitClient.contactApi.getContacts()
                         if (response.isSuccessful) {
@@ -207,10 +204,69 @@ fun CurreApp() {
             runSegmentStartTimeMillis = System.currentTimeMillis()
             isPaused = false
             currentRunId = null
-            currentScreen = AppScreen.ActiveRun
             routeSegments = listOf(emptyList())
             dynamicDistanceMiles = 0.0
-            ignoreNextDistance = false
+            checkInIntervalSeconds = if (safetyMode == SafetyMode.MODE_B) SAFETY_CHECK_IN_INTERVAL else 0
+            alertsTriggered = 0
+            lastGpsUpdateTimeMillis = System.currentTimeMillis()
+            checkInAccumulatedMillis = 0L
+            checkInSegmentStartTime = System.currentTimeMillis()
+            isCheckInOverdue = false
+
+            coroutineScope.launch {
+                try {
+                    val initalRun = RunDto(
+                        startedAt = System.currentTimeMillis(),
+                        endedAt = 0L,
+                        distanceMiles = 0.0,
+                        durationSeconds = 0,
+                        avgPaceSecsPerMile = 0.0,
+                        calories = 0,
+                        routePoints = emptyList()
+                    )
+                    val response = RetrofitClient.api.saveRun(initalRun)
+                    if (response.isSuccessful){
+                        response.body()?.id?.let { runId ->
+                            currentRunId = runId
+                            if(safetyMode == SafetyMode.MODE_A || safetyMode == SafetyMode.MODE_B) {
+                                val interval = if (safetyMode == SafetyMode.MODE_B) SAFETY_CHECK_IN_INTERVAL else 900
+                                @SuppressLint("MissingPermission")
+                                fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).addOnSuccessListener { location: Location? ->
+                                    val payload = mapOf(
+                                        "runId" to runId,
+                                        "intervalSeconds" to interval,
+                                        "lat" to location?.latitude,
+                                        "lng" to location?.longitude
+                                    )
+
+                                    coroutineScope.launch {
+                                        try {
+                                            RetrofitClient.safetyApi.startSafety(payload)
+                                        } catch (e: Exception) {
+                                            println("Failed to start safety: ${e.message}")
+                                        }
+                                    }
+                                }.addOnFailureListener {
+                                    println("Failed to fetch location, starting safety without GPS.")
+                                    val payload = mapOf(
+                                        "runId" to runId,
+                                        "intervalSeconds" to interval,
+                                        "lat" to null,
+                                        "lng" to null
+                                    )
+                                    coroutineScope.launch {
+                                        RetrofitClient.safetyApi.startSafety(payload)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    println("Failed to initialize run/safety: ${e.message}")
+                }
+            }
+            currentScreen = AppScreen.ActiveRun
+
         }
     }
 
@@ -360,11 +416,41 @@ fun CurreApp() {
                 }
             }
 
+            var checkInRemainingSeconds by remember { mutableIntStateOf(checkInIntervalSeconds) }
+            LaunchedEffect(checkInSegmentStartTime, checkInAccumulatedMillis, isPaused, isCheckInOverdue, alertsTriggered) {
+                while (alertsTriggered < 3) {
+                    if (isPaused || isCheckInOverdue) {
+                        delay(1000)
+                        continue
+                    }
+                    val elapsedMillis = checkInAccumulatedMillis + (System.currentTimeMillis() - checkInSegmentStartTime)
+                    val remaining = checkInIntervalSeconds - (elapsedMillis / 1000).toInt()
+                    if (remaining <= 0){
+                        alertsTriggered++
+                        isCheckInOverdue = true
+                        checkInRemainingSeconds = 0
+                    } else {
+                        checkInRemainingSeconds = remaining
+                    }
+                    delay(1000)
+                }
+            }
+            val checkInTimerString = String.format("%02d:%02d", checkInRemainingSeconds / 60, checkInRemainingSeconds % 60)
+
+            val gpsSecondsAgo by produceState(initialValue = 0L, key1 = lastGpsUpdateTimeMillis) {
+                while (true) {
+                    value = (System.currentTimeMillis() - lastGpsUpdateTimeMillis) / 1000
+                    delay(1000)
+                }
+            }
+            val gpsStatusText = if (isPaused) "Run paused" else "GPS updated ${gpsSecondsAgo}s ago"
+
             DisposableEffect(Unit) {
                 val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 3000).build()
                 val locationCallback = object : LocationCallback(){
                     override fun onLocationResult(locationResult: LocationResult){
                         if (!isPaused){
+                            lastGpsUpdateTimeMillis = System.currentTimeMillis()
                             for (location in locationResult.locations){
                                 val newPoint = RoutePointDto(
                                     latitude = location.latitude,
@@ -415,6 +501,49 @@ fun CurreApp() {
             }
 
             ActiveRunScreen(
+                safetyMode = when(safetyMode) {
+                    SafetyMode.NONE -> "None"
+                    SafetyMode.MODE_A -> "Mode A"
+                    SafetyMode.MODE_B -> "Mode B"
+                },
+                activeRunId = currentRunId,
+                checkInTimerString = checkInTimerString,
+                isCheckInOverdue = isCheckInOverdue,
+                maxAlertsReached = alertsTriggered >= 3,
+                gpsStatusText = gpsStatusText,
+                onCheckInClick = {
+                    currentRunId?.let { runId ->
+                        checkInAccumulatedMillis = 0L
+                        checkInSegmentStartTime = System.currentTimeMillis()
+                        isCheckInOverdue = false
+                        coroutineScope.launch {
+                            @SuppressLint("MissingPermission")
+                            fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
+                                val payload = mapOf(
+                                    "lat" to location?.latitude,
+                                    "lng" to location?.longitude
+                                )
+                                coroutineScope.launch {
+                                    try {
+                                        RetrofitClient.safetyApi.checkIn(runId, payload)
+                                    } catch (e: Exception) {
+                                        println("Check-in failed: ${e.message}")
+                                    }
+                                }
+                            }.addOnFailureListener {
+                                // If GPS fails, still check in to stop the alarm, but send nulls
+                                val payload = mapOf("lat" to null, "lng" to null)
+                                coroutineScope.launch {
+                                    try {
+                                        RetrofitClient.safetyApi.checkIn(runId, payload)
+                                    } catch (e: Exception) {
+                                        println("Check-in failed: ${e.message}")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
                 elapsedTime = formatElapsedTime(elapsedMillis),
                 distanceMiles = dynamicDistanceMiles,
                 calories = liveCalories,
@@ -423,13 +552,27 @@ fun CurreApp() {
                 onPauseResumeClick = {
                     if (isPaused) {
                         runSegmentStartTimeMillis = System.currentTimeMillis()
+                        checkInSegmentStartTime = System.currentTimeMillis()
                         isPaused = false
-                        pausedByEndDialog = false
                         routeSegments = routeSegments + listOf(emptyList())
+
+                        currentRunId?.let { runId ->
+                            if (safetyMode == SafetyMode.MODE_B && !isCheckInOverdue) {
+                                coroutineScope.launch { try {
+                                    RetrofitClient.safetyApi.resumeSafety(runId, mapOf("remainingSeconds" to checkInRemainingSeconds)) } catch (e: Exception) {} }
+                            }
+                        }
                     } else {
-                        accumulatedElapsedMillis +=
-                            (System.currentTimeMillis() - runSegmentStartTimeMillis)
+                        val now = System.currentTimeMillis()
+                        accumulatedElapsedMillis += (now - runSegmentStartTimeMillis)
+                        if (!isCheckInOverdue) checkInAccumulatedMillis += (now - checkInSegmentStartTime)
                         isPaused = true
+                        currentRunId?.let { runId ->
+                            if (safetyMode == SafetyMode.MODE_B) {
+                                coroutineScope.launch { try {
+                                    RetrofitClient.safetyApi.pauseSafety(runId) } catch (e: Exception) {} }
+                            }
+                        }
                     }
                 },
                 onStopClick = {
@@ -448,6 +591,7 @@ fun CurreApp() {
                     val estimatedCalories = (distance * 100).toInt()
                     val flatPoints = routeSegments.flatten()
                     val runToSave = RunDto(
+                        id = currentRunId,
                         startedAt = System.currentTimeMillis() - finalElapsedMillis,
                         endedAt = System.currentTimeMillis(),
                         distanceMiles = distance,
@@ -461,30 +605,23 @@ fun CurreApp() {
                         try {
                             val response = RetrofitClient.api.saveRun(runToSave)
                             if (response.isSuccessful) {
-                                val savedRun = response.body()
-                                savedRun?.id?.let { runId ->
-                                    currentRunId = runId
-                                    if (safetyMode == SafetyMode.MODE_A || safetyMode == SafetyMode.MODE_B) {
-                                        try {
-                                            val interval = if (safetyMode == SafetyMode.MODE_B) 900 else 0
-                                            RetrofitClient.safetyApi.startSafety(
-                                                StartSafetyRequest(runId, interval)
-                                            )
-                                        } catch (e: Exception) {
-                                            println("Failed to start safety monitoring: ${e.message}")
-                                        }
-                                    }
-                                }
-                                println("SUCCESS! Saved run to backend with ID: ${response.body()?.id}")
+                                println("SUCCESS! Saved final run to backend")
                             } else {
                                 println("SERVER ERROR: ${response.errorBody()?.string()}")
+                            }
+                            if (safetyMode == SafetyMode.MODE_A || safetyMode == SafetyMode.MODE_B){
+                                currentRunId?.let { runId ->
+                                        try {
+                                            RetrofitClient.safetyApi.stopSafety(runId)
+                                        } catch (e: Exception) {
+                                            println("Failed to stop safety monitoring: ${e.message}")
+                                        }
+                                }
                             }
                         } catch (e: Exception) {
                             println("NETWORK ERROR: ${e.message}")
                         }
                     }
-
-                    pausedByEndDialog = false
 
                     currentScreen = AppScreen.EndRun(
                         RunSummary(
@@ -498,20 +635,27 @@ fun CurreApp() {
                 },
                 onPauseForEndDialog = {
                     if (!isPaused) {
-                        accumulatedElapsedMillis +=
-                            (System.currentTimeMillis() - runSegmentStartTimeMillis)
+                        val now = System.currentTimeMillis()
+                        accumulatedElapsedMillis += (now - runSegmentStartTimeMillis)
+                        if (!isCheckInOverdue) checkInAccumulatedMillis += (now - checkInSegmentStartTime)
                         isPaused = true
-                        pausedByEndDialog = true
                         routeSegments = routeSegments + listOf(emptyList())
-                    } else {
-                        pausedByEndDialog = false
+
+                        currentRunId?.let { runId ->
+                            if (safetyMode == SafetyMode.MODE_B) coroutineScope.launch { try { RetrofitClient.safetyApi.pauseSafety(runId) } catch (e: Exception) {} }
+                        }
                     }
                 },
                 onResumeAfterEndDialogDismiss = {
                     if (pausedByEndDialog) {
                         runSegmentStartTimeMillis = System.currentTimeMillis()
+                        checkInSegmentStartTime = System.currentTimeMillis()
                         isPaused = false
                         pausedByEndDialog = false
+
+                        currentRunId?.let { runId ->
+                            if (safetyMode == SafetyMode.MODE_B && !isCheckInOverdue) coroutineScope.launch { try { RetrofitClient.safetyApi.resumeSafety(runId, mapOf("remainingSeconds" to checkInRemainingSeconds)) } catch (e: Exception) {} }
+                        }
                     }
                 }
             )
@@ -521,15 +665,6 @@ fun CurreApp() {
             EndRunScreen(
                 summary = screen.summary,
                 onDoneClick = {
-                    currentRunId?.let { runId ->
-                        coroutineScope.launch {
-                            try {
-                                RetrofitClient.safetyApi.stopSafety(runId)
-                            } catch (e: Exception) {
-                                println("Failed to stop safety monitoring: ${e.message}")
-                            }
-                        }
-                    }
                     currentScreen = AppScreen.Home
                 }
             )

@@ -57,6 +57,13 @@ fun ActiveRunScreen(
     calories: Int,
     avgPace: Double,
     isPaused: Boolean,
+    safetyMode: String,
+    activeRunId: Long?,
+    checkInTimerString: String,
+    isCheckInOverdue: Boolean,
+    maxAlertsReached: Boolean,
+    gpsStatusText: String,
+    onCheckInClick: () -> Unit,
     onPauseResumeClick: () -> Unit,
     onStopClick: () -> Unit,
     onPauseForEndDialog: () -> Unit,
@@ -64,6 +71,7 @@ fun ActiveRunScreen(
 ) {
     // Controls whether the "End Run" confirmation dialog is visible.
     var showEndRunDialog by remember { mutableStateOf(false) }
+    var isCheckingIn by remember { mutableStateOf(false) }
 
     // Full-screen surface for the active run page.
     Surface(
@@ -99,7 +107,7 @@ fun ActiveRunScreen(
             Spacer(modifier = Modifier.height(20.dp))
 
             // GPS + safety status row
-            RunStatusBanner(isPaused = isPaused)
+            RunStatusBanner(isPaused = isPaused, safetyMode = safetyMode, gpsStatusText = gpsStatusText)
 
             Spacer(modifier = Modifier.height(30.dp))
 
@@ -128,7 +136,64 @@ fun ActiveRunScreen(
             Spacer(modifier = Modifier.height(40.dp))
 
             // Dark banner that confirms safety notifications were sent.
-            ContactsBanner()
+            if (safetyMode != "None") {
+                ContactsBanner()
+            }
+
+            if(safetyMode == "Mode B" && activeRunId != null) {
+                Spacer(modifier = Modifier.height(16.dp))
+                if (maxAlertsReached) {
+                    Button(
+                        onClick = {},
+                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFFFEBEE),
+                            contentColor = Color(0xFFD32F2F)
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Shield,
+                            contentDescription = "Alerts Maxed",
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Safety Disabled: Max Alerts Reached",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                    }
+                } else {
+                    Button(
+                        onClick = {
+                            if (!isCheckingIn) {
+                                isCheckingIn = true
+                                onCheckInClick()
+                                isCheckingIn = false
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isCheckInOverdue) CurreOrange else CurreNavy,
+                            contentColor = if (isCheckInOverdue) Color.White else CurreLime
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Shield,
+                            contentDescription = "Check In",
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (isCheckInOverdue) "Overdue! Check In Now" else if (isCheckingIn) "Checking In..." else "Safe Check-In ($checkInTimerString)",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.weight(1f))
 
@@ -243,7 +308,9 @@ fun ActiveRunScreen(
 
 @Composable
 private fun RunStatusBanner(
-    isPaused: Boolean
+    isPaused: Boolean,
+    safetyMode: String,
+    gpsStatusText: String
 ) {
     // Status row below the timer showing GPS and safety mode state.
     Card(
@@ -273,7 +340,7 @@ private fun RunStatusBanner(
                 Spacer(modifier = Modifier.width(10.dp))
 
                 Text(
-                    text = if (isPaused) "Run paused" else "GPS updating 3s ago",
+                    text = gpsStatusText,
                     color = CurreTextMuted,
                     fontSize = 14.sp
                 )
@@ -283,7 +350,7 @@ private fun RunStatusBanner(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(20.dp))
-                    .background(CurreLimeSoft)
+                    .background(if (safetyMode == "None") CurreSurface else CurreLimeSoft)
                     .padding(horizontal = 14.dp, vertical = 8.dp)
             ) {
                 Row(
@@ -292,15 +359,15 @@ private fun RunStatusBanner(
                     Icon(
                         imageVector = Icons.Outlined.Shield,
                         contentDescription = "Safety mode",
-                        tint = CurreSafetyText,
+                        tint = if (safetyMode == "None") CurreTextMuted else CurreSafetyText,
                         modifier = Modifier.size(18.dp)
                     )
 
                     Spacer(modifier = Modifier.width(6.dp))
 
                     Text(
-                        text = "Safety Mode A: ON",
-                        color = CurreSafetyText,
+                        text = if (safetyMode == "None") "Safety: OFF" else "Safety: $safetyMode",
+                        color = if (safetyMode == "None") CurreTextMuted else CurreSafetyText,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp
                     )

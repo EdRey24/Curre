@@ -13,9 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.*;
-import java.util.stream.Collectors;
 
 @Service
 public class SafetyService {
@@ -42,34 +40,17 @@ public class SafetyService {
         this.notificationService = notificationService;
     }
 
-    private User getOrCreateUser(Long userId) {
-        // First try to find by ID (for real authenticated users)
-        Optional<User> byId = userRepository.findById(userId);
-        if (byId.isPresent()) {
-            return byId.get();
-        }
-        // Fallback: look up by email pattern (for legacy/test users)
-        String email = "user" + userId + "@curre.com";
-        return userRepository.findByEmail(email)
-                .orElseGet(() -> {
-                    User newUser = new User();
-                    newUser.setFirstName("Test");
-                    newUser.setLastName("User");
-                    newUser.setEmail(email);
-                    newUser.setPassword("default");
-                    User saved = userRepository.save(newUser);
-                    log.info("SafetyService: Auto‑created user with email {} and ID {}", email, saved.getId()); // DEBUG
-                    return saved;
-                });
-    } // END OF METHOD getOrCreateUser
+    private User getUser(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found with ID: " + userId));
+    }
 
     @Transactional
-    public void startSafetyMonitoring(Long runId, Long userId, Integer checkInIntervalSeconds) {
+    public void startSafetyMonitoring(Long runId, Long userId, Integer checkInIntervalSeconds, Double lat, Double lng) {
         Run run = runRepository.findById(runId)
                 .orElseThrow(() -> new EntityNotFoundException("Run not found with id: " + runId));
 
-        User user = getOrCreateUser(userId);
-        List<EmergencyContact> contacts = contactRepository.findByUserId(user.getId());
+        List<EmergencyContact> contacts = contactRepository.findByUserId(userId);
         if (contacts.isEmpty()) {
             throw new IllegalStateException("Cannot enable safety: no emergency contacts added");
         }
@@ -82,72 +63,101 @@ public class SafetyService {
 
         SafetySession session = new SafetySession();
         session.setRunId(runId);
-        session.setUserId(user.getId());
+        session.setUserId(userId);
         session.setCheckInIntervalSeconds(checkInIntervalSeconds);
         session.setLastCheckIn(Instant.now());
+        session.setLastLat(lat);
+        session.setLastLng(lng);
+        session.setAlertCount(0);
         session.setActive(true);
         sessionRepository.save(session);
 
-        scheduleOverdueCheck(runId, user.getId(), checkInIntervalSeconds);
+        scheduleOverdueCheck(runId, userId, checkInIntervalSeconds);
 
-        List<String> contactEmails = contacts.stream().map(EmergencyContact::getEmail).collect(Collectors.toList());
-        notificationService.sendRunStartedNotification(user.getEmail(), contactEmails, null, null);
-        log.info("Started safety monitoring for run {} user {}", runId, user.getId()); // DEBUG
+        User user = getUser(userId);
+        String fullName = user.getFirstName() + " " + user.getLastName();
+        notificationService.sendRunStartedNotification(fullName, contacts, lat, lng);
+        log.info("Started safety monitoring for run {} user {}", runId, userId); // DEBUG
     } // END OF METHOD startSafetyMonitoring
 
     @Transactional
-    public void checkIn(Long runId, Long userId) {
-        User user = getOrCreateUser(userId);
-        SafetySession session = sessionRepository.findByRunIdAndActiveTrue(runId)
-                .orElseThrow(() -> new EntityNotFoundException("No active safety session for run " + runId));
-        if (!session.getUserId().equals(user.getId())) {
-            throw new SecurityException("Run does not belong to this user");
+    public void checkIn(Long runId, Long userId, Double lat, Double lng) {
+        SafetySession session = sessionRepository.findByRunIdAndActiveTrue(runId).orElse(null);
+        if (session != null) {
+            session.setLastCheckIn(Instant.now());
+            if(lat != null && lng != null){
+                session.setLastLat(lat);
+                session.setLastLng(lng);
+            }
+            sessionRepository.save(session);
+            cancelScheduledTask(runId);
+            scheduleOverdueCheck(runId, userId, session.getCheckInIntervalSeconds());
+            log.info("User {} checked in for run {}. Emergency timer successfully reset!", userId, runId);
         }
-        session.setLastCheckIn(Instant.now());
-        sessionRepository.save(session);
-
-        cancelScheduledTask(runId);
-        scheduleOverdueCheck(runId, user.getId(), session.getCheckInIntervalSeconds());
-        log.info("Check‑in received for run {} user {}", runId, user.getId()); // DEBUG
     } // END OF METHOD checkIn
 
     @Transactional
     public void stopSafetyMonitoring(Long runId, Long userId) {
-        User user = getOrCreateUser(userId);
         SafetySession session = sessionRepository.findByRunIdAndActiveTrue(runId).orElse(null);
-        if (session != null && session.getUserId().equals(user.getId())) {
-            session.setActive(false);
-            sessionRepository.save(session);
-            cancelScheduledTask(runId);
-
-            List<EmergencyContact> contacts = contactRepository.findByUserId(user.getId());
-            List<String> contactEmails = contacts.stream().map(EmergencyContact::getEmail).collect(Collectors.toList());
-            notificationService.sendRunEndedNotification(user.getEmail(), contactEmails);
-            log.info("Stopped safety monitoring for run {} user {}", runId, user.getId()); // DEBUG
+        if (session == null) {
+            return;
         }
+        session.setActive(false);
+        sessionRepository.save(session);
+        cancelScheduledTask(runId);
+
+        User user = getUser(userId);
+        List<EmergencyContact> contacts = contactRepository.findByUserId(userId);
+        String fullName = user.getFirstName() + " " + user.getLastName();
+        notificationService.sendRunEndedNotification(fullName, contacts);
+        log.info("Stopped safety monitoring for run {} user {}", runId, userId); // DEBUG
     } // END OF METHOD stopSafetyMonitoring
 
     private void scheduleOverdueCheck(Long runId, Long userId, int delaySeconds) {
         Runnable overdueTask = () -> {
-            SafetySession session = sessionRepository.findByRunIdAndActiveTrue(runId).orElse(null);
-            if (session == null || !session.isActive()) return;
-            Instant now = Instant.now();
-            if (now.isAfter(session.getLastCheckIn().plusSeconds(delaySeconds))) {
-                User user = getOrCreateUser(userId);
-                List<EmergencyContact> contacts = contactRepository.findByUserId(user.getId());
-                List<String> contactEmails = contacts.stream().map(EmergencyContact::getEmail).collect(Collectors.toList());
-                notificationService.sendOverdueAlert(user.getEmail(), contactEmails, null, null);
-                if (session != null) {
-                    session.setActive(false);
-                    sessionRepository.save(session);
-                }
-                cancelScheduledTask(runId);
-                log.warn("Overdue alert sent for run {} user {}", runId, user.getId()); // DEBUG
+            try {
+                processOverdueAlert(runId, userId);
+            } catch (Exception e) {
+                log.error("CRITICAL ERROR inside overdue task for run {}", runId, e);
             }
         };
         ScheduledFuture<?> future = scheduler.schedule(overdueTask, delaySeconds, TimeUnit.SECONDS);
         scheduledTasks.put(runId, future);
     } // END OF METHOD scheduleOverdueCheck
+
+    @Transactional
+    public void processOverdueAlert(Long runId, Long userId) {
+        SafetySession session = sessionRepository.findByRunIdAndActiveTrue(runId).orElse(null);
+        if(session == null || !session.isActive()) return;
+
+        if (session.getAlertCount() != null && session.getAlertCount() >= 3) {
+            log.info("Max overdue alerts (3) reached for run {}. Skipping further alerts.", runId);
+            return;
+        }
+
+        User user = getUser(userId);
+        List<EmergencyContact> contacts = contactRepository.findByUserId(userId);
+        Double lastLat = session.getLastLat();
+        Double lastLng = session.getLastLng();
+        String fullName = user.getFirstName() + " " + user.getLastName();
+        notificationService.sendOverdueAlert(fullName, contacts, lastLat, lastLng);
+        int newCount = (session.getAlertCount() == null ? 0 : session.getAlertCount()) + 1;
+        session.setAlertCount(newCount);
+        sessionRepository.save(session);
+        cancelScheduledTask(runId);
+        log.warn("Overdue alert sent for run {} user {}", runId, userId);
+    }
+
+    public void pauseSafetyMonitoring(Long runId, Long userId) {
+        cancelScheduledTask(runId);
+        log.info("Safety monitoring PAUSED for run {}", runId);
+    }
+
+    public void resumeSafetyMonitoring(Long runId, Long userId, Integer remainingSeconds) {
+        cancelScheduledTask(runId);
+        scheduleOverdueCheck(runId, userId, remainingSeconds);
+        log.info("Safety monitoring RESUMED for run {} with {} seconds remaining", runId, remainingSeconds);
+    }
 
     private void cancelScheduledTask(Long runId) {
         ScheduledFuture<?> future = scheduledTasks.remove(runId);

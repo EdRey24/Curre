@@ -1,6 +1,8 @@
 -- 1. Create the Users table first
 CREATE TABLE users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    first_name VARCHAR(100) NOT NULL DEFAULT '',
+    last_name VARCHAR(100) NOT NULL DEFAULT '',
     email VARCHAR(255) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL
 );
@@ -34,6 +36,9 @@ CREATE TABLE safety_sessions (
     user_id INTEGER NOT NULL,
     check_in_interval_seconds INTEGER NOT NULL,
     last_check_in BIGINT NOT NULL,
+    last_lat REAL,
+    last_lng REAL,
+    alert_count INTEGER NOT NULL DEFAULT 0,
     active BOOLEAN NOT NULL,
     FOREIGN KEY (run_id) REFERENCES runs(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id)
