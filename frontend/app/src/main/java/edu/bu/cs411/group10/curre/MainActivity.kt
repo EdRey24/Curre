@@ -231,7 +231,7 @@ fun CurreApp() {
                             if(safetyMode == SafetyMode.MODE_A || safetyMode == SafetyMode.MODE_B) {
                                 val interval = if (safetyMode == SafetyMode.MODE_B) SAFETY_CHECK_IN_INTERVAL else 900
                                 @SuppressLint("MissingPermission")
-                                fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
+                                fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).addOnSuccessListener { location: Location? ->
                                     val payload = mapOf(
                                         "runId" to runId,
                                         "intervalSeconds" to interval,
@@ -591,6 +591,7 @@ fun CurreApp() {
                     val estimatedCalories = (distance * 100).toInt()
                     val flatPoints = routeSegments.flatten()
                     val runToSave = RunDto(
+                        id = currentRunId,
                         startedAt = System.currentTimeMillis() - finalElapsedMillis,
                         endedAt = System.currentTimeMillis(),
                         distanceMiles = distance,
