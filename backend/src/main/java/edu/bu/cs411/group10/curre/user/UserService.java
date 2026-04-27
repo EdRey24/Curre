@@ -15,6 +15,12 @@ public class UserService {
     }
 
     public AuthResponse register(UserDTO dto) {
+        if (dto.getFirstName() == null || dto.getFirstName().trim().isEmpty()) {
+            throw new IllegalArgumentException("First name is required");
+        }
+        if (dto.getLastName() == null || dto.getLastName().trim().isEmpty()) {
+            throw new IllegalArgumentException("Last name is required");
+        }
         if (dto.getConfirmPassword() == null || !dto.getPassword().equals(dto.getConfirmPassword())) {
             throw new IllegalArgumentException("Passwords do not match");
         }
@@ -25,8 +31,8 @@ public class UserService {
         }
 
         User user = new User();
-        user.setFirstName(dto.getFirstName());
-        user.setLastName(dto.getLastName());
+        user.setFirstName(dto.getFirstName().trim());
+        user.setLastName(dto.getLastName().trim());
         user.setEmail(dto.getEmail());
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
         User saved = userRepository.save(user);

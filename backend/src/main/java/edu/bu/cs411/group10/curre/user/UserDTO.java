@@ -5,10 +5,10 @@ import jakarta.validation.constraints.NotBlank;
 
 public class UserDTO {
 
-    @NotBlank(message = "First name is required")
+    // firstName and lastName are validated only during registration (in UserService)
+    // so the login endpoint can reuse this DTO without requiring them
     private String firstName;
 
-    @NotBlank(message = "Last name is required")
     private String lastName;
 
     @NotBlank(message = "Email is required")
