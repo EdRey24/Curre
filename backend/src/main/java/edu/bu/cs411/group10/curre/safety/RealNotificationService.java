@@ -34,25 +34,25 @@ public class RealNotificationService implements NotificationService {
     }
 
     @Override
-    public void sendRunStartedNotification(String userEmail, List<EmergencyContact> contact, Double lat, Double lng){
-        String msg = "Curre: " + userEmail + " started a run. Location: " + formatMapLink(lat, lng);
+    public void sendRunStartedNotification(String runnerName, List<EmergencyContact> contact, Double lat, Double lng){
+        String msg = "Curre: " + runnerName + " started a run. Location: " + formatMapLink(lat, lng);
         broadcast(contact, "Curre: Run Started", msg);
     }
 
     @Override
-    public void sendRunEndedNotification(String userEmail, List<EmergencyContact> contacts) {
-        String msg = "Curre: " + userEmail + " finished their run safely.";
+    public void sendRunEndedNotification(String runnerName, List<EmergencyContact> contacts) {
+        String msg = "Curre: " + runnerName + " finished their run safely.";
         broadcast(contacts, "Curre: Run Ended", msg);
     }
 
     @Override
-    public void sendOverdueAlert(String userEmail, List<EmergencyContact> contacts, Double lastLat, Double lastLng) {
-        String msg = "URGENT: " + userEmail + " missed a check-in! Last location: " + formatMapLink(lastLat, lastLng);
+    public void sendOverdueAlert(String runnerName, List<EmergencyContact> contacts, Double lastLat, Double lastLng) {
+        String msg = "URGENT: " + runnerName + " missed a check-in! Last location: " + formatMapLink(lastLat, lastLng);
         broadcast(contacts, "URGENT: Runner Overdue", msg);
     }
 
     @Override
-    public void sendTestNotification(String userEmail, List<EmergencyContact> contacts) {
+    public void sendTestNotification(String runnerName, List<EmergencyContact> contacts) {
         String msg = "Curre Test: If you recieve this, emergency alerts are working correctly!";
         broadcast(contacts, "Curre: Test Alert", msg);
     }
