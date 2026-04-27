@@ -87,7 +87,7 @@ To add the API keys to your local Run Configuration:
 
 ---
 
-### Step 2: Running the Frontend (Android App)
+### Step 3: Running the Frontend (Android App)
 
 1. Open **Android Studio**.
 2. Click **File > Open...** and select the `frontend` folder from this repository.
