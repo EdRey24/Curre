@@ -21,7 +21,11 @@ Here are the main features of Curre!:
 | Yuting Lin     | linyt@bu.edu   | UI/UX Designer / Frontend Developer                       |
 | Namig Mirzayev | namigm@bu.edu  | Technical Lead Architect                                  |
 
-TA: GitHub username is TimJackman
+| TA/Graders: (GitHub Usernames) |
+| ------------------------------ |
+| TimJackman                     |
+| Michelleelim                   |
+| Kubarozwadowski                |
 
 ## Curre - Local Development Setup
 
@@ -31,9 +35,9 @@ This guide will walk you through compiling and running both the Spring Boot back
 
 Before you begin, ensure you have the following installed on your computer:
 
-1. **Java Development Kit (JDK) 21 or higher**
-2. **IntelliJ IDEA** (Recommended for the Spring Boot backend)
-3. **Android Studio** (Required for the Android frontend)
+1. [**Java Development Kit (JDK) 21 or higher**](https://adoptium.net/temurin/releases/?version=21)
+2. [**IntelliJ IDEA**](https://www.jetbrains.com/idea/download) (Recommended for the Spring Boot backend)
+3. [**Android Studio**](https://developer.android.com/studio) (Required for the Android frontend)
 4. Android Emulator configured in Android Studio using the Medium Phone config.
 
 ---
@@ -67,7 +71,7 @@ The backend handles user authentication, run tracking, and emergency safety moni
 
 To add the API keys to your local Run Configuration:
 
-1. Next to the green Play button at the top of IntelliJ, click the dropdown menu and select **Edit Configurations...**.
+1. Next to the green Play button at the top of IntelliJ, click the dropdown menu and select **Edit Configurations...**
 2. Select the Spring Boot application on the left side.
 3. Look for the field labeled **Environment variables**. _(If you don't see it, click "Modify options" or "Alt-M" and check "Environment variables")._
 4. Click the small folder/document icon next to the input box to open the variables window.
@@ -81,7 +85,7 @@ To add the API keys to your local Run Configuration:
 
 #### Start the Server
 
-1. Click the green **Play** button next to the `main` method to start the server.
+1. Click the green **Play** button next to the `main` method in IntelliJ to start the server.
 2. The Spring Boot backend should now be running on `http://localhost:8080`.
    _(Note: The SQLite database file will automatically be generated in your backend directory upon starting)._
 
