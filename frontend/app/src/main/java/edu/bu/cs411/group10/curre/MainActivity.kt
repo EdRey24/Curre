@@ -230,7 +230,7 @@ fun CurreApp() {
     }
 
     fun attemptStartRun() {
-        if (emergencyContacts.isEmpty()) {
+        if (emergencyContacts.isEmpty() && safetyMode != SafetyMode.NONE) {
             showNoContactsError = true
         } else {
             accumulatedElapsedMillis = 0L
@@ -765,7 +765,7 @@ fun CurreApp() {
                     val paceSeconds = (paceSecsPerMile % 60).toInt()
                     val formattedPace = String.format("%d:%02d", paceMinutes, paceSeconds)
                     val estimatedCalories = (distance * 100).toInt()
-                    val flatPoints = routeSegments.flatten()
+                    val flatPoints = routeSegments.flatMapIndexed { index, segment -> segment.map { point -> point.copy(segmentIndex = index) } }
                     val runToSave = RunDto(
                         id = currentRunId,
                         startedAt = System.currentTimeMillis() - finalElapsedMillis,
