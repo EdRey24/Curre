@@ -604,6 +604,7 @@ fun CurreApp() {
                 val locationCallback = object : LocationCallback(){
                     override fun onLocationResult(locationResult: LocationResult){
                         if (!isPaused){
+                            lastGpsUpdateTimeMillis = System.currentTimeMillis()
                             for (location in locationResult.locations){
                                 val newPoint = RoutePointDto(
                                     latitude = location.latitude,
