@@ -51,5 +51,6 @@ CREATE TABLE route_points (
     latitude REAL NOT NULL,
     longitude REAL NOT NULL,
     timestamp_millis INTEGER NOT NULL,
+    segment_index INTEGER NOT NULL DEFAULT 0,
     FOREIGN KEY (run_id) REFERENCES runs(id) ON DELETE CASCADE
 );
