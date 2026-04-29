@@ -21,6 +21,18 @@ import androidx.compose.ui.unit.sp
 import edu.bu.cs411.group10.curre.ui.model.RoutePointDto
 import edu.bu.cs411.group10.curre.ui.model.RunDto
 import edu.bu.cs411.group10.curre.ui.theme.*
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.graphics.toColorInt
+import org.osmdroid.config.Configuration
+import org.osmdroid.util.BoundingBox
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.Polyline
+import org.osmdroid.views.overlay.Marker
+import android.graphics.drawable.ShapeDrawable
+import android.graphics.drawable.shapes.OvalShape
+import android.graphics.Paint
 
 // Date formatting
 import java.text.SimpleDateFormat
@@ -261,20 +273,23 @@ private fun DetailMetricCard(
 }
 
 /**
- * Draws a simplified route using Canvas from GPS points
+ * Draws the route using OpenStreetMap (osmdroid) from GPS points
  */
 @Composable
 private fun RoutePreview(
     routePoints: List<RoutePointDto>
 ) {
+    val context = LocalContext.current
+    Configuration.getInstance().userAgentValue = context.packageName
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .height(260.dp),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF7EA))
+        colors = CardDefaults.cardColors(containerColor = CurreSurface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-
         // If not enough data, show message
         if (routePoints.size < 2) {
             Box(
@@ -287,51 +302,71 @@ private fun RoutePreview(
                 )
             }
         } else {
+            // Draw route using OpenStreetMap
+            AndroidView(
+                modifier = Modifier.fillMaxSize(),
+                factory = { ctx ->
+                    MapView(ctx).apply {
+                        setMultiTouchControls(true)
 
-            // Draw route using Canvas
-            Canvas(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(14.dp)
-            ) {
+                        // 1. Group the flat list back into sub-lists based on the segmentIndex
+                        val groupedSegments = routePoints.groupBy { it.segmentIndex }.values
 
-                // Find bounding box for scaling
-                val minLat = routePoints.minOf { it.latitude }
-                val maxLat = routePoints.maxOf { it.latitude }
-                val minLng = routePoints.minOf { it.longitude }
-                val maxLng = routePoints.maxOf { it.longitude }
+                        // 2. Loop through each segment and draw an independent Polyline
+                        groupedSegments.forEach { segmentPoints ->
+                            if (segmentPoints.size >= 2) {
+                                val segmentGeoPoints = segmentPoints.map { GeoPoint(it.latitude, it.longitude) }
 
-                val latRange = (maxLat - minLat).takeIf { it != 0.0 } ?: 1.0
-                val lngRange = (maxLng - minLng).takeIf { it != 0.0 } ?: 1.0
+                                val routeLine = Polyline().apply {
+                                    setPoints(segmentGeoPoints)
+                                    outlinePaint.color = "#FF5722".toColorInt() // CurreOrange
+                                    outlinePaint.strokeWidth = 15f
+                                    outlinePaint.strokeCap = Paint.Cap.ROUND
+                                    outlinePaint.strokeJoin = Paint.Join.ROUND
+                                }
+                                overlays.add(routeLine)
+                            }
+                        }
 
-                // Convert GPS → screen coordinates
-                fun mapPoint(point: RoutePointDto): Offset {
-                    val x = ((point.longitude - minLng) / lngRange * size.width).toFloat()
-                    val y = (size.height - ((point.latitude - minLat) / latRange * size.height)).toFloat()
-                    return Offset(x, y)
+                        // 3. Create a flat list of GeoPoints just for the bounding box and markers
+                        val allGeoPoints = routePoints.map { GeoPoint(it.latitude, it.longitude) }
+
+                        if (allGeoPoints.isNotEmpty()) {
+                            // Helper function to create a circular dot
+                            fun createDotDrawable(colorHex: String): ShapeDrawable {
+                                return ShapeDrawable(OvalShape()).apply {
+                                    intrinsicWidth = 40
+                                    intrinsicHeight = 40
+                                    paint.color = colorHex.toColorInt()
+                                    paint.style = Paint.Style.FILL
+                                }
+                            }
+
+                            // Add Start and End Markers
+                            val startMarker = Marker(this).apply {
+                                position = allGeoPoints.first()
+                                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                                icon = createDotDrawable("#CDDC39") // CurreLime
+                            }
+
+                            val endMarker = Marker(this).apply {
+                                position = allGeoPoints.last()
+                                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                                icon = createDotDrawable("#FF5722") // CurreOrange
+                            }
+
+                            overlays.add(startMarker)
+                            overlays.add(endMarker)
+
+                            // Center and zoom the map
+                            val boundingBox = BoundingBox.fromGeoPoints(allGeoPoints)
+                            post {
+                                zoomToBoundingBox(boundingBox, false, 200)
+                            }
+                        }
+                    }
                 }
-
-                // Build path
-                val path = Path()
-                val first = mapPoint(routePoints.first())
-                path.moveTo(first.x, first.y)
-
-                routePoints.drop(1).forEach {
-                    val mapped = mapPoint(it)
-                    path.lineTo(mapped.x, mapped.y)
-                }
-
-                // Draw route line
-                drawPath(
-                    path = path,
-                    color = CurreLime,
-                    style = Stroke(width = 8f, cap = StrokeCap.Round)
-                )
-
-                // Draw start & end markers
-                drawCircle(CurreOrange, 16f, mapPoint(routePoints.first()))
-                drawCircle(CurreLime, 16f, mapPoint(routePoints.last()))
-            }
+            )
         }
     }
 }
