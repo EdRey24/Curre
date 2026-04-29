@@ -14,5 +14,6 @@ data class RunDto(
 data class RoutePointDto(
     val latitude: Double,
     val longitude: Double,
-    val timestampMillis: Long
+    val timestampMillis: Long,
+    val segmentIndex: Int = 0
 )
