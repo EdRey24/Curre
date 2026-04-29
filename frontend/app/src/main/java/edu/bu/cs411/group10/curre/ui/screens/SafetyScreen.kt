@@ -1,5 +1,6 @@
 package edu.bu.cs411.group10.curre.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -16,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -28,6 +30,7 @@ import edu.bu.cs411.group10.curre.ui.theme.*
 import kotlinx.coroutines.launch
 
 enum class SafetyMode {
+    NONE,
     MODE_A,
     MODE_B
 }
@@ -47,6 +50,10 @@ fun SafetyScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     var contactBeingEdited by remember { mutableStateOf<EmergencyContact?>(null) }
     var contactPendingDelete by remember { mutableStateOf<EmergencyContact?>(null) }
+    val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current;
+    var isTesting by remember { mutableStateOf(false) }
+
 
     Scaffold(
         containerColor = CurreBackground,
@@ -89,6 +96,15 @@ fun SafetyScreen(
                     color = CurreTextMuted,
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp
+                )
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                SafetyModeCard(
+                    title = "None",
+                    subtitle = "Run without safety features",
+                    selected = selectedMode == SafetyMode.NONE,
+                    onClick = { onModeChange(SafetyMode.NONE) }
                 )
 
                 Spacer(modifier = Modifier.height(18.dp))
@@ -183,31 +199,53 @@ fun SafetyScreen(
 
                 Spacer(modifier = Modifier.height(18.dp))
 
-                // Test notification button (still disabled for now)
                 Button(
-                    onClick = { },
-                    enabled = false,
+                    onClick = {
+                        if (isTesting) return@Button
+                        isTesting = true
+                        coroutineScope.launch {
+                            try {
+                                val response = RetrofitClient.safetyApi.sendTestNotification()
+                                if (response.isSuccessful){
+                                    Toast.makeText(context, "Test notification sent!", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "Failed to send test. Code: ${response.code()}", Toast.LENGTH_LONG).show()
+                                }
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Network Error: ${e.message}", Toast.LENGTH_LONG).show()
+                            } finally {
+                                isTesting = false
+                            }
+                        }
+                    },
+                    enabled = !isTesting && contacts.isNotEmpty(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(68.dp),
                     shape = RoundedCornerShape(28.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFDDE1E7),
-                        contentColor = Color(0xFF8B93A1),
+                        containerColor = CurreNavy,
+                        contentColor = CurreLime,
                         disabledContainerColor = Color(0xFFDDE1E7),
                         disabledContentColor = Color(0xFF8B93A1)
                     )
                 ) {
-                    Icon(
-                        imageVector = Icons.Outlined.NotificationsNone,
-                        contentDescription = "Send test notification",
-                        modifier = Modifier.size(22.dp)
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
+                    if (isTesting) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
+                    } else {
+                        Icon(Icons.Outlined.NotificationsNone, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Send Test Notification")
+                    }
+                }
+
+                if (contacts.isEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Send Test Notification",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 17.sp
+                        text = "*Please add at lease one emergency contact to send a test.",
+                        color = CurreOrange,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(horizontal = 16.dp)
                     )
                 }
 

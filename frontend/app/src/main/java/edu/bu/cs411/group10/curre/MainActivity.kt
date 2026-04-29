@@ -35,9 +35,6 @@ import edu.bu.cs411.group10.curre.ui.theme.CurreTheme
 import edu.bu.cs411.group10.curre.ui.model.EmergencyContact
 import edu.bu.cs411.group10.curre.ui.screens.SafetyMode
 import edu.bu.cs411.group10.curre.ui.screens.SafetyScreen
-import edu.bu.cs411.group10.curre.ui.screens.RunsScreen
-import edu.bu.cs411.group10.curre.ui.screens.RunDetailsScreen
-import edu.bu.cs411.group10.curre.ui.screens.ProfileScreen
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
@@ -47,7 +44,6 @@ import androidx.compose.runtime.LaunchedEffect
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.Calendar
 import edu.bu.cs411.group10.curre.network.StartSafetyRequest
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
@@ -63,16 +59,6 @@ import androidx.compose.material3.*
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import kotlin.collections.emptyList
-
-/**
- * Tracks where RunDetails was opened from
- * → Fixes back navigation bug
- */
-private enum class RunDetailsSource {
-    HOME,
-    RUNS
-}
-
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -93,14 +79,8 @@ private sealed class AppScreen {
     data object SignUp : AppScreen()
     data object Home : AppScreen()
     data object Safety : AppScreen()
-    data object Runs : AppScreen()
     data object ActiveRun : AppScreen()
-    data class RunDetails(
-        val runId: Long,
-        val source: RunDetailsSource
-    ) : AppScreen()
     data class EndRun(val summary: RunSummary) : AppScreen()
-    data object Profile : AppScreen()
 }
 
 @Composable
@@ -129,8 +109,6 @@ fun CurreApp() {
     var pastRuns by remember { mutableStateOf<List<PastRun>>(emptyList()) }
 
     var pausedByEndDialog by remember { mutableStateOf(false) }
-
-    var fetchedRuns by remember { mutableStateOf<List<RunDto>>(emptyList()) }
 
     var safetyMode by remember { mutableStateOf(SafetyMode.MODE_A) }
 
@@ -193,12 +171,11 @@ fun CurreApp() {
             else -> { /* not authenticated yet */
             }
         }
-        if (currentScreen is AppScreen.Home || currentScreen is AppScreen.Runs || currentScreen is AppScreen.RunDetails) {
+        if (currentScreen is AppScreen.Home) {
             try {
                 val response = RetrofitClient.api.getRuns()
                 if (response.isSuccessful) {
                     val fetchedDtos = response.body() ?: emptyList()
-                    fetchedRuns = fetchedDtos
                     pastRuns = fetchedDtos.map { dto ->
                         PastRun(
                             dto.id?.toInt() ?: 0,
@@ -271,28 +248,26 @@ fun CurreApp() {
         }
 
         is AppScreen.Home -> {
-            val weeklyMilesValue = String.format("%.2f", fetchedRuns.sumOf { it.distanceMiles }).toDouble()
-            val streakDaysValue = calculateConsecutiveStreakDays(fetchedRuns)
             HomeScreen(
                 emergencyContactsCount = emergencyContacts.size,
-                weeklyMiles = weeklyMilesValue,
-                streakDays = streakDaysValue,
+                weeklyMiles = 12.5,
+                streakDays = 20,
                 pastRuns = pastRuns,
                 onStartRun = { attemptStartRun() },
                 onSafetyClick = {
                     currentScreen = AppScreen.Safety
                 },
                 onRunsClick = {
-                    currentScreen = AppScreen.Runs
+                    // TODO: Add runs screen navigation later.
                 },
                 onProfileClick = {
-                    currentScreen = AppScreen.Profile
+                    // TODO: Add profile screen navigation later.
                 },
-                onRecentRunClick = { run ->
-                    currentScreen = AppScreen.RunDetails(
-                        runId = run.id.toLong(),
-                        source = RunDetailsSource.HOME
-                    )
+                onRecentRunClick = {
+                    // TODO: Add run detail screen later.
+                },
+                onSignOut = {
+                    currentScreen = AppScreen.SignUp
                 }
             )
         }
@@ -303,8 +278,8 @@ fun CurreApp() {
                 onModeChange = { safetyMode = it },
                 onHomeClick = { currentScreen = AppScreen.Home },
                 onStartRunClick = { attemptStartRun() },
-                onRunsClick = { currentScreen = AppScreen.Runs },
-                onProfileClick = { currentScreen = AppScreen.Profile },
+                onRunsClick = { /* TODO */ },
+                onProfileClick = { /* TODO */ },
                 onContactsUpdated = { updatedContacts ->
                     emergencyContacts = updatedContacts
                 },
@@ -487,55 +462,6 @@ fun CurreApp() {
             )
         }
 
-        is AppScreen.Runs -> {
-            RunsScreen(
-                runs = fetchedRuns.sortedByDescending { it.startedAt },
-                onHomeClick = { currentScreen = AppScreen.Home },
-                onSafetyClick = { currentScreen = AppScreen.Safety },
-                onStartRunClick = { attemptStartRun() },
-                onRunsClick = { currentScreen = AppScreen.Runs },
-                onProfileClick = { currentScreen = AppScreen.Profile },
-                onRunClick = { runId ->
-                    currentScreen = AppScreen.RunDetails(
-                        runId = runId,
-                        source = RunDetailsSource.RUNS
-                    )
-                }
-            )
-        }
-
-        is AppScreen.RunDetails -> {
-            val selectedRun = fetchedRuns.firstOrNull { it.id == screen.runId }
-
-            if (selectedRun != null) {
-                RunDetailsScreen(
-                    run = selectedRun,
-                    onBackClick = {
-                        currentScreen = when (screen.source) {
-                            RunDetailsSource.HOME -> AppScreen.Home
-                            RunDetailsSource.RUNS -> AppScreen.Runs
-                        }
-                    }
-                )
-            } else {
-                currentScreen = AppScreen.Runs
-            }
-        }
-
-        is AppScreen.Profile -> {
-            ProfileScreen(
-                username = "demo",
-                onHomeClick = { currentScreen = AppScreen.Home },
-                onSafetyClick = { currentScreen = AppScreen.Safety },
-                onStartRunClick = { attemptStartRun() },
-                onRunsClick = { currentScreen = AppScreen.Runs },
-                onProfileClick = { currentScreen = AppScreen.Profile },
-                onSignOutClick = {
-                    currentScreen = AppScreen.SignUp
-                }
-            )
-        }
-
         is AppScreen.EndRun -> {
             EndRunScreen(
                 summary = screen.summary,
@@ -616,33 +542,4 @@ private fun formatSummaryDuration(elapsedMillis: Long): String {
     val seconds = totalSeconds % 60
 
     return String.format("%dm %02ds", minutes, seconds)
-}
-
-
-private fun calculateConsecutiveStreakDays(runs: List<RunDto>): Int {
-    if (runs.isEmpty()) return 0
-
-    val dateFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-
-    // Unique run dates only
-    val uniqueRunDates = runs
-        .map { dateFormatter.format(Date(it.startedAt)) }
-        .toSet()
-
-    val calendar = Calendar.getInstance()
-    var streak = 0
-
-    // Count backwards from today until a missing day breaks the streak
-    while (true) {
-        val currentDate = dateFormatter.format(calendar.time)
-
-        if (uniqueRunDates.contains(currentDate)) {
-            streak++
-            calendar.add(Calendar.DAY_OF_YEAR, -1)
-        } else {
-            break
-        }
-    }
-
-    return streak
 }

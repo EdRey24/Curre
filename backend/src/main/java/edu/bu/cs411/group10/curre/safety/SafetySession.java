@@ -26,6 +26,15 @@ public class SafetySession {
     @Column(nullable = false)
     private boolean active = true;
 
+    @Column(name = "last_lat")
+    private Double lastLat;
+
+    @Column(name = "last_lng")
+    private Double lastLng;
+
+    @Column(name = "alert_count")
+    private Integer alertCount = 0;
+
     public SafetySession() {}
 
     public Long getId() { return id; }
@@ -45,4 +54,13 @@ public class SafetySession {
 
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
+
+    public Double getLastLat() { return lastLat; }
+    public void setLastLat(Double lastLat) { this.lastLat = lastLat; }
+
+    public Double getLastLng() { return lastLng; }
+    public void setLastLng(Double lastLng) { this.lastLng = lastLng; }
+
+    public Integer getAlertCount() { return alertCount; }
+    public void setAlertCount(Integer alertCount) { this.alertCount = alertCount; }
 } // END OF CLASS SafetySession
