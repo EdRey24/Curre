@@ -37,7 +37,13 @@ public class UserService {
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
         User saved = userRepository.save(user);
 
-        return new AuthResponse(saved.getId(), saved.getEmail(), "Registration successful");
+        return new AuthResponse(
+                saved.getId(),
+                saved.getEmail(),
+                saved.getFirstName(),
+                saved.getLastName(),
+                "Registration successful"
+        );
     }
 
     public AuthResponse login(UserDTO dto) {
@@ -51,6 +57,12 @@ public class UserService {
             throw new IllegalArgumentException("Invalid password");
         }
 
-        return new AuthResponse(user.getId(), user.getEmail(), "Login successful");
+        return new AuthResponse(
+                user.getId(),
+                user.getEmail(),
+                user.getFirstName(),
+                user.getLastName(),
+                "Login successful"
+        );
     }
 }

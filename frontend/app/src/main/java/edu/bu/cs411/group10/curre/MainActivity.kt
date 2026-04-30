@@ -344,7 +344,9 @@ fun CurreApp() {
                                 AuthPrefs.saveLogin(
                                     context,
                                     body.userId!!,
-                                    body.email ?: email
+                                    body.email ?: email,
+                                    body.firstName,
+                                    body.lastName
                                 )
                                 onResult(true, body.message)
                             } else {

@@ -15,6 +15,8 @@ data class AuthRequest(
 data class AuthResponse(
     val userId: Long?,
     val email: String?,
+    val firstName: String?,
+    val lastName: String?,
     val message: String
 )
 
