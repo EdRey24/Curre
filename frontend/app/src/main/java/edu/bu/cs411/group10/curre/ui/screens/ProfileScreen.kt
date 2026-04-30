@@ -47,7 +47,9 @@ import edu.bu.cs411.group10.curre.ui.theme.CurreTextMuted
 
 @Composable
 fun ProfileScreen(
-    username: String,
+    firstName: String,
+    lastName: String,
+    email: String,
     onHomeClick: () -> Unit,
     onSafetyClick: () -> Unit,
     onStartRunClick: () -> Unit,
@@ -125,7 +127,7 @@ fun ProfileScreen(
                         Spacer(modifier = Modifier.height(16.dp))
 
                         Text(
-                            text = username,
+                            text = "$firstName $lastName",
                             color = CurreNavy,
                             fontWeight = FontWeight.Bold,
                             fontSize = 24.sp
@@ -162,7 +164,7 @@ fun ProfileScreen(
                         )
 
                         Text(
-                            text = "Username: $username",
+                            text = "Email: $email",
                             color = CurreTextMuted,
                             fontSize = 15.sp
                         )

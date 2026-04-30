@@ -395,7 +395,9 @@ fun CurreApp() {
                                 AuthPrefs.saveLogin(
                                     context,
                                     body.userId!!,
-                                    body.email ?: email
+                                    body.email ?: email,
+                                    firstName,
+                                    lastName
                                 )
                                 onResult(true, body.message)
                             } else {
@@ -490,7 +492,9 @@ fun CurreApp() {
 
         is AppScreen.Profile -> {
             ProfileScreen(
-                username = "demo",
+                firstName = AuthPrefs.getFirstName(context) ?: "Demo",
+                lastName = AuthPrefs.getLastName(context) ?: "User",
+                email = AuthPrefs.getEmail(context) ?: "demo@curre.com",
                 onHomeClick = { currentScreen = AppScreen.Home },
                 onSafetyClick = { currentScreen = AppScreen.Safety },
                 onStartRunClick = { attemptStartRun() },
