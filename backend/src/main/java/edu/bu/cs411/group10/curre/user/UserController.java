@@ -23,7 +23,7 @@ public class UserController {
             AuthResponse response = userService.register(dto);
             return new ResponseEntity<>(response, HttpStatus.CREATED);
         } catch (IllegalArgumentException e) {
-            return new ResponseEntity<>(new AuthResponse(null, dto.getEmail(), e.getMessage()), HttpStatus.BAD_REQUEST);
+            return new ResponseEntity<>(new AuthResponse(null, dto.getEmail(), null, null, e.getMessage()), HttpStatus.BAD_REQUEST);
         }
     }
 
@@ -33,13 +33,13 @@ public class UserController {
             AuthResponse response = userService.login(dto);
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
-            return new ResponseEntity<>(new AuthResponse(null, dto.getEmail(), e.getMessage()), HttpStatus.UNAUTHORIZED);
+            return new ResponseEntity<>(new AuthResponse(null, dto.getEmail(), null, null, e.getMessage()), HttpStatus.UNAUTHORIZED);
         }
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<AuthResponse> handleValidationError(MethodArgumentNotValidException ex) {
         String message = ex.getBindingResult().getFieldError().getDefaultMessage();
-        return new ResponseEntity<>(new AuthResponse(null, null, message), HttpStatus.BAD_REQUEST);
+        return new ResponseEntity<>(new AuthResponse(null, null, null, null, message), HttpStatus.BAD_REQUEST);
     }
 }

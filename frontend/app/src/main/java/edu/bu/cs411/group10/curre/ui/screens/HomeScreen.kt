@@ -45,7 +45,6 @@ fun HomeScreen(
     onRunsClick: () -> Unit,
     onProfileClick: () -> Unit,
     onRecentRunClick: (PastRun) -> Unit,
-    onSignOut: () -> Unit
 ) {
     // Scaffold gives us a main app layout with a fixed bottom bar.
     Scaffold(
@@ -68,31 +67,19 @@ fun HomeScreen(
                 .background(CurreBackground)
                 .padding(innerPadding)
                 .padding(horizontal = 20.dp),
-            contentPadding = PaddingValues(top = 20.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(22.dp)
         ) {
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(onClick = onSignOut) {
-                        Text(
-                            text = "Sign Out",
-                            color = CurreTextMuted,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-            }
             // App title
             item {
                 Text(
                     text = "Curre!",
                     color = CurreNavy,
                     fontWeight = FontWeight.ExtraBold,
-                    fontSize = 42.sp
+                    fontSize = 45.sp,
+                    modifier = Modifier.padding(top = 20.dp)
                 )
+                Spacer(modifier = Modifier.height(24.dp))
             }
 
             // Emergency status card

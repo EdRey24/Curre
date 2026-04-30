@@ -15,6 +15,9 @@ public class RoutePoint {
     @JsonBackReference
     private Run run;
 
+    @Column(name = "segment_index", nullable = false)
+    private Integer segmentIndex = 0;
+
     private Double latitude;
     private Double longitude;
     private Long timestampMillis;
@@ -29,4 +32,7 @@ public class RoutePoint {
     public void setLongitude(Double longitude) {this.longitude = longitude;}
     public Long getTimestampMillis(){return timestampMillis;}
     public void setTimestampMillis(Long timestampMillis) {this.timestampMillis = timestampMillis;}
+
+    public Integer getSegmentIndex() { return segmentIndex; }
+    public void setSegmentIndex(Integer segmentIndex) { this.segmentIndex = segmentIndex; }
 }
